@@ -53,7 +53,7 @@ async def helper_row(ctx, username):
 
 
 def patch(monkeypatch, behaviors):
-    async def fake_converse(client, username, url, variant, expected, timeout):
+    async def fake_converse(client, username, url, variant, expected, timeout, wants="any"):
         return await behaviors[username]()
 
     async def no_start(client, redis, username):
@@ -124,7 +124,7 @@ async def test_youtube_prefers_youtube_helper_and_no_helpers_message(ctx, monkey
     async def ok():
         return [media(1)]
 
-    async def record(client, username, url, variant, expected, timeout):
+    async def record(client, username, url, variant, expected, timeout, wants="any"):
         seen.append(username)
         return [media(1)]
 

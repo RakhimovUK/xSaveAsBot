@@ -21,7 +21,12 @@ from telethon import TelegramClient
 from app.bot.media_utils import key_tag
 from app.config import Settings
 from app.relay import registry
-from app.relay.parsing import choose_button, classify_message, media_plausible
+from app.relay.parsing import (
+    choose_button,
+    classify_message,
+    media_plausible,
+    wanted_kind,
+)
 
 log = logging.getLogger(__name__)
 
@@ -53,6 +58,7 @@ async def converse(
     variant: str | None,
     expected_duration: float | None,
     timeout_s: float,
+    wants: str = "any",
 ) -> list[Any]:
     """Send `url` to the helper and return its media messages (an album = several)."""
     entity = await client.get_entity(username)
@@ -65,13 +71,25 @@ async def converse(
     media: dict[int, Any] = {}
     last_media_at: float | None = None
     last_problem: str | None = None
+    logged: set[int] = set()
 
     while time.monotonic() < deadline:
         await asyncio.sleep(POLL_S)
         messages = await client.get_messages(entity, min_id=last_id, limit=40)
         incoming = [m for m in reversed(messages) if not m.out]
         for msg in incoming:
-            verdict = classify_message(msg)
+            verdict = classify_message(msg, wants)
+            if msg.id not in logged:
+                logged.add(msg.id)
+                log.info(
+                    "relay @%s: msg=%s verdict=%s media=%s buttons=%s text=%r",
+                    username,
+                    msg.id,
+                    verdict,
+                    type(msg.media).__name__ if msg.media else None,
+                    [b.text for row in (msg.buttons or []) for b in row][:8],
+                    (msg.message or "")[:80],
+                )
             if verdict == "media":
                 if msg.id not in media and media_plausible(msg, expected_duration):
                     media[msg.id] = msg
@@ -116,6 +134,7 @@ async def _attempt(
     url: str,
     variant: str | None,
     expected_duration: float | None,
+    wants: str = "any",
 ) -> tuple[Any, list[Any], int]:
     """Ask one helper. Returns (helper, media messages, latency_ms) or raises."""
     settings: Settings = ctx["settings"]
@@ -126,7 +145,13 @@ async def _attempt(
     try:
         await _ensure_started(client, redis, helper.username)
         messages = await converse(
-            client, helper.username, url, variant, expected_duration, settings.relay_timeout_s
+            client,
+            helper.username,
+            url,
+            variant,
+            expected_duration,
+            settings.relay_timeout_s,
+            wants,
         )
         return helper, messages, int((time.monotonic() - started) * 1000)
     finally:
@@ -164,13 +189,14 @@ async def relay_fetch(
     if not helpers:
         return {"ok": False, "error": "no helper bots available"}
 
+    wants = wanted_kind(platform, variant)
     parallel = max(1, settings.relay_parallel)
     pending = list(helpers)
     last_error = "unknown"
     while pending:
         batch, pending = pending[:parallel], pending[parallel:]
         tasks = {
-            asyncio.create_task(_attempt(ctx, client, h, url, variant, expected_duration)): h
+            asyncio.create_task(_attempt(ctx, client, h, url, variant, expected_duration, wants)): h
             for h in batch
         }
         winner: tuple[Any, list[Any], int] | None = None

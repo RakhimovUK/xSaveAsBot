@@ -39,17 +39,49 @@ VIDEO_PREFS = ("1080", "720", "best", "лучш", "mp4", "video", "видео")
 AUDIO_PREFS = ("mp3", "audio", "аудио", "music", "музык")
 
 
-def classify_message(msg: Any) -> str:
+VIDEO_ONLY_PLATFORMS = {"youtube", "vimeo", "twitch"}
+
+
+def wanted_kind(platform: str, variant: str | None) -> str:
+    """What the final media must be: audio (MP3), video (video sites) or any."""
+    if variant == "mp3":
+        return "audio"
+    return "video" if platform in VIDEO_ONLY_PLATFORMS else "any"
+
+
+def _is_photo(msg: Any) -> bool:
+    return type(getattr(msg, "media", None)).__name__ == "MessageMediaPhoto"
+
+
+def media_matches(msg: Any, wants: str) -> bool:
+    """Is this media the kind we asked for? (A video site's thumbnail photo is not.)"""
+    if wants == "any":
+        return True
+    mime = (getattr(getattr(msg, "file", None), "mime_type", None) or "").lower()
+    if wants == "video":
+        return mime.startswith("video/") or bool(
+            getattr(msg, "video", None) or getattr(msg, "gif", None)
+        )
+    return mime.startswith("audio/") or bool(
+        getattr(msg, "audio", None) or getattr(msg, "voice", None)
+    )
+
+
+def classify_message(msg: Any, wants: str = "any") -> str:
     """media | junk | error | buttons | progress"""
     media = getattr(msg, "media", None)
+    has_buttons = bool(getattr(msg, "buttons", None))
     if media is not None and type(media).__name__ != "MessageMediaWebPage":
-        return "media"
+        # A photo carrying buttons is a quality prompt, not the result
+        if media_matches(msg, wants) and not (_is_photo(msg) and has_buttons):
+            return "media"
+        return "buttons" if has_buttons else "progress"  # e.g. a thumbnail while processing
     text = (getattr(msg, "message", "") or "").lower()
     if any(marker in text for marker in JOIN_MARKERS):
         return "junk"
     if any(marker in text for marker in ERROR_MARKERS):
         return "error"
-    if getattr(msg, "buttons", None):
+    if has_buttons:
         return "buttons"
     return "progress"
 

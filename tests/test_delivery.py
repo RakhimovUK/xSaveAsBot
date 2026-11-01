@@ -241,3 +241,42 @@ def test_media_plausibility():
 
 
 _ = AsyncSession  # keep import used for type clarity in fixtures
+
+
+# --- wanted media kind (video sites must not accept thumbnails) -------------------
+
+
+class MessageMediaPhoto: ...
+
+
+def typed(text="", media=None, buttons=None, mime=None, **attrs):
+    m = msg(text, media, buttons)
+    m.file = SimpleNamespace(duration=None, size=10, mime_type=mime)
+    for k, v in attrs.items():
+        setattr(m, k, v)
+    return m
+
+
+def test_thumbnail_photo_is_not_a_video_result():
+    from app.relay.parsing import wanted_kind
+
+    assert wanted_kind("youtube", None) == "video" and wanted_kind("youtube", "mp3") == "audio"
+    assert wanted_kind("instagram", None) == "any" and wanted_kind("vimeo", "720p") == "video"
+
+    thumb = typed("Title", MessageMediaPhoto(), None)
+    assert classify_message(thumb, "video") == "progress"
+    picker = typed("Choose quality", MessageMediaPhoto(), [[button("720p")]])
+    assert classify_message(picker, "video") == "buttons"
+    assert classify_message(picker, "any") == "buttons"  # photo + buttons is always a prompt
+    assert classify_message(thumb, "any") == "media"  # an Instagram photo post is a result
+
+
+def test_video_and_audio_documents_match():
+    video = typed("", MessageMediaDocument(), None, mime="video/mp4")
+    audio = typed("", MessageMediaDocument(), None, mime="audio/mpeg")
+    assert classify_message(video, "video") == "media"
+    assert classify_message(audio, "video") == "progress"  # wrong kind is ignored
+    assert classify_message(audio, "audio") == "media"
+    assert classify_message(video, "audio") == "progress"
+    video_with_buttons = typed("", MessageMediaDocument(), [[button("More")]], mime="video/mp4")
+    assert classify_message(video_with_buttons, "video") == "media"
