@@ -39,8 +39,8 @@ async def shutdown(ctx: dict[str, Any]) -> None:
 async def upload_test_file(ctx: dict[str, Any], key: str, channel_id: int) -> int:
     """Post a generated PNG with the #key tag; the bot picks it up as channel_post."""
     client = ctx["userbots"].get()
-    with tempfile.TemporaryDirectory(prefix="xsaver-") as tmp:
-        path = write_png(Path(tmp) / "xsaver-test.png")
+    with tempfile.TemporaryDirectory(prefix="xsaveasbot-") as tmp:
+        path = write_png(Path(tmp) / "xsaveasbot-test.png")
         msg = await client.send_file(channel_id, str(path), caption=key_tag(key))
     log.info("Uploaded test file key=%s channel=%s msg=%s", key, channel_id, msg.id)
     return msg.id

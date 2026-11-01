@@ -2,7 +2,7 @@
 x-app-env: &app-env
   env_file: .env
   environment:
-    DATABASE_URL: postgresql+asyncpg://xsaver:xsaver@postgres:5432/xsaver
+    DATABASE_URL: postgresql+asyncpg://xsaveasbot:xsaveasbot@postgres:5432/xsaveasbot
     REDIS_URL: redis://redis:6379/0
   restart: unless-stopped
 
@@ -11,13 +11,13 @@ services:
     image: postgres:17-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER: xsaver
-      POSTGRES_PASSWORD: xsaver
-      POSTGRES_DB: xsaver
+      POSTGRES_USER: xsaveasbot
+      POSTGRES_PASSWORD: xsaveasbot
+      POSTGRES_DB: xsaveasbot
     ports: ["127.0.0.1:5432:5432"]  # never exposed to the internet
     volumes: [pgdata:/var/lib/postgresql/data]
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U xsaver"]
+      test: ["CMD-SHELL", "pg_isready -U xsaveasbot"]
       interval: 3s
       retries: 20
 

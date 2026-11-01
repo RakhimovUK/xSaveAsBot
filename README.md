@@ -1,4 +1,4 @@
-# xSaver
+# xSaveAsBot
 
 Telegram bot that downloads media from links (Instagram, YouTube, TikTok, Threads, Pinterest and more)
 and delivers it with near-zero server egress via private storage channels.

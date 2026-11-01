@@ -5,7 +5,7 @@ lang-changed = ✅ Til o'zgartirildi: O'zbekcha
 welcome =
     👋 Salom, { $name }!
 
-    Men <b>xSaver</b> — havola yuboring, men media faylni qaytaraman.
+    Men <b>xSaveAsBot</b> — havola yuboring, men media faylni qaytaraman.
 
     <b>Asosiy platformalar:</b> Instagram, YouTube, TikTok, Threads, Pinterest
     <b>Qo'shimcha:</b> Facebook, X/Twitter, Snapchat, Likee, VK, SoundCloud, Spotify, Reddit, Twitch, Vimeo

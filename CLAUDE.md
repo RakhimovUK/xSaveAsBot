@@ -1,6 +1,7 @@
-# xSaver — notes for Claude Code
+# xSaveAsBot — notes for Claude Code
 
-Telegram saver bot: user sends a link, gets the media back. Full spec: `docs/BRIEF.md`.
+Telegram saver bot **@xSaveAsBot**: user sends a link, gets the media back. Full spec: `docs/BRIEF.md`
+(the brief uses the earlier working name "xSaver" / @xSaverBot; the product name is xSaveAsBot).
 Status and next steps: `PROGRESS.md`. Resume a session by reading these two files.
 
 ## Working agreement
@@ -19,8 +20,8 @@ pytest + pytest-asyncio · ruff.
 | Process  | Entry                     | Role |
 |----------|---------------------------|------|
 | bot      | `python -m app.bot.main`  | Bot API, handlers never block; receives storage `channel_post`s |
-| worker   | `python -m app.worker.main` | arq queue `xsaver:worker`: probe/download (Phase 2+) |
-| uploader | `python -m app.uploader.main` | arq queue `xsaver:uploader`; the ONLY owner of userbot sessions |
+| worker   | `python -m app.worker.main` | arq queue `xsaveasbot:worker`: probe/download (Phase 2+) |
+| uploader | `python -m app.uploader.main` | arq queue `xsaveasbot:uploader`; the ONLY owner of userbot sessions |
 
 Never open a Telethon session outside the uploader (one process per session).
 The helper-bot relay (Phase 5) depends on third-party bots and can break at any time; it is a fallback.

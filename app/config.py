@@ -52,7 +52,7 @@ class Settings(BaseSettings):
     inbox_channel: int | None = None
 
     # Infra
-    database_url: str = "postgresql+asyncpg://xsaver:xsaver@localhost:5432/xsaver"
+    database_url: str = "postgresql+asyncpg://xsaveasbot:xsaveasbot@localhost:5432/xsaveasbot"
     redis_url: str = "redis://localhost:6379/0"
 
     # Limits

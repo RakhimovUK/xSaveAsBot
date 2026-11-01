@@ -18,7 +18,7 @@ PENDING_TTL_S = 3600
 
 
 def _redis_key(key: str) -> str:
-    return f"xsaver:pending:{key}"
+    return f"xsaveasbot:pending:{key}"
 
 
 @dataclass(frozen=True, slots=True)

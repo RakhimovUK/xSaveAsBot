@@ -18,7 +18,7 @@ target_metadata = Base.metadata
 class _DbSettings(BaseSettings):
     # Only the DB URL, so migrations don't need BOT_TOKEN etc.
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
-    database_url: str = "postgresql+asyncpg://xsaver:xsaver@localhost:5432/xsaver"
+    database_url: str = "postgresql+asyncpg://xsaveasbot:xsaveasbot@localhost:5432/xsaveasbot"
 
 
 def _url() -> str:

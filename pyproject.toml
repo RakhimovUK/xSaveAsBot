@@ -1,7 +1,7 @@
 [project]
-name = "xsaver"
+name = "xsaveasbot"
 version = "0.1.0"
-description = "xSaver: Telegram media saver bot with zero-egress delivery"
+description = "xSaveAsBot: Telegram media saver bot with zero-egress delivery"
 requires-python = ">=3.12"
 dependencies = [
     "aiogram==3.31.0",

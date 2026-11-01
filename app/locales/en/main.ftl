@@ -5,7 +5,7 @@ lang-changed = ✅ Language changed: English
 welcome =
     👋 Hi, { $name }!
 
-    I'm <b>xSaver</b> — send me a link and I'll send the media back.
+    I'm <b>xSaveAsBot</b> — send me a link and I'll send the media back.
 
     <b>Core platforms:</b> Instagram, YouTube, TikTok, Threads, Pinterest
     <b>Extra:</b> Facebook, X/Twitter, Snapchat, Likee, VK, SoundCloud, Spotify, Reddit, Twitch, Vimeo

@@ -5,7 +5,7 @@ lang-changed = ✅ Язык изменён: Русский
 welcome =
     👋 Привет, { $name }!
 
-    Я <b>xSaver</b> — отправьте ссылку, и я пришлю медиафайл.
+    Я <b>xSaveAsBot</b> — отправьте ссылку, и я пришлю медиафайл.
 
     <b>Основные платформы:</b> Instagram, YouTube, TikTok, Threads, Pinterest
     <b>Дополнительно:</b> Facebook, X/Twitter, Snapchat, Likee, VK, SoundCloud, Spotify, Reddit, Twitch, Vimeo
