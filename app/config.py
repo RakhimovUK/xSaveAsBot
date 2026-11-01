@@ -60,6 +60,7 @@ class Settings(BaseSettings):
     max_self_upload_mb: int = 1900
     relay_threshold_mb: int = 50
     relay_timeout_s: int = 120
+    relay_parallel: int = 2  # helpers raced at once; first valid media wins
     egress_daily_budget_gb: float = 5.0
     user_rate_limit: int = 10
     worker_concurrency: int = 4

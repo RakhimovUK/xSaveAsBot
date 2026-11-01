@@ -17,7 +17,6 @@ from typing import Any
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import async_sessionmaker
 from telethon import TelegramClient
-from telethon.errors import FloodWaitError
 
 from app.bot.media_utils import key_tag
 from app.config import Settings
@@ -99,6 +98,51 @@ async def converse(
     raise RelayError(last_problem or "timeout: no media from helper")
 
 
+async def _ensure_started(client: TelegramClient, redis: Redis, username: str) -> None:
+    """Bots ignore users who never pressed /start: do it once per helper."""
+    flag = f"xsaveasbot:relay:started:{username}"
+    if await redis.get(flag):
+        return
+    entity = await client.get_entity(username)
+    await client.send_message(entity, "/start")
+    await asyncio.sleep(4)  # let the welcome message arrive before our request
+    await redis.set(flag, "1")
+
+
+async def _attempt(
+    ctx: dict[str, Any],
+    client: TelegramClient,
+    helper: Any,
+    url: str,
+    variant: str | None,
+    expected_duration: float | None,
+) -> tuple[Any, list[Any], int]:
+    """Ask one helper. Returns (helper, media messages, latency_ms) or raises."""
+    settings: Settings = ctx["settings"]
+    redis: Redis = ctx["redis"]
+    if not await _acquire(redis, helper.username, wait_s=settings.relay_timeout_s):
+        raise RelayError(f"@{helper.username} busy")
+    started = time.monotonic()
+    try:
+        await _ensure_started(client, redis, helper.username)
+        messages = await converse(
+            client, helper.username, url, variant, expected_duration, settings.relay_timeout_s
+        )
+        return helper, messages, int((time.monotonic() - started) * 1000)
+    finally:
+        await _release(redis, helper.username)
+
+
+async def _record_failure(ctx: dict[str, Any], helper: Any, error: str) -> None:
+    redis: Redis = ctx["redis"]
+    streak = int(await redis.incr(f"xsaveasbot:relay:streak:{helper.username}"))
+    async with ctx["sessionmaker"]() as session:
+        await registry.record_result(session, helper.id, ok=False, error=error, streak=streak)
+        await session.commit()
+    if streak >= registry.FAILS_BEFORE_COOLDOWN:
+        await redis.delete(f"xsaveasbot:relay:streak:{helper.username}")
+
+
 async def relay_fetch(
     ctx: dict[str, Any],
     key: str,
@@ -108,6 +152,8 @@ async def relay_fetch(
     channel_id: int,
     expected_duration: float | None = None,
 ) -> dict[str, Any]:
+    """Race the best `relay_parallel` helpers; the first valid media wins, the rest are
+    cancelled. If the whole batch fails, the next batch of helpers is tried."""
     settings: Settings = ctx["settings"]
     redis: Redis = ctx["redis"]
     sm: async_sessionmaker = ctx["sessionmaker"]
@@ -118,44 +164,51 @@ async def relay_fetch(
     if not helpers:
         return {"ok": False, "error": "no helper bots available"}
 
+    parallel = max(1, settings.relay_parallel)
+    pending = list(helpers)
     last_error = "unknown"
-    for helper in helpers:
-        if not await _acquire(redis, helper.username, wait_s=settings.relay_timeout_s):
-            last_error = f"@{helper.username} busy"
-            continue
-        started = time.monotonic()
+    while pending:
+        batch, pending = pending[:parallel], pending[parallel:]
+        tasks = {
+            asyncio.create_task(_attempt(ctx, client, h, url, variant, expected_duration)): h
+            for h in batch
+        }
+        winner: tuple[Any, list[Any], int] | None = None
         try:
-            messages = await converse(
-                client, helper.username, url, variant, expected_duration, settings.relay_timeout_s
-            )
+            while tasks and winner is None:
+                done, _ = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+                for task in done:
+                    helper = tasks.pop(task)
+                    try:
+                        result = task.result()
+                    except Exception as exc:
+                        last_error = str(exc) or type(exc).__name__
+                        log.warning("relay failed helper=@%s: %s", helper.username, last_error)
+                        await _record_failure(ctx, helper, last_error)
+                    else:
+                        winner = winner or result
+        finally:
+            for task in tasks:
+                task.cancel()  # lost the race: its lock is released in _attempt
+            await asyncio.gather(*tasks, return_exceptions=True)
+
+        if winner is None:
+            continue
+        helper, messages, latency = winner
+        try:
             total = len(messages)
             for index, msg in enumerate(messages, 1):
                 await client.send_file(channel_id, msg.media, caption=key_tag(key, index, total))
                 await asyncio.sleep(0.5)
-            latency = int((time.monotonic() - started) * 1000)
-            await redis.delete(f"xsaveasbot:relay:streak:{helper.username}")
-            async with sm() as session:
-                await registry.record_result(session, helper.id, ok=True, latency_ms=latency)
-                await session.commit()
-            log.info(
-                "relay ok helper=@%s key=%s parts=%d %dms", helper.username, key, total, latency
-            )
-            return {"ok": True, "helper": helper.username, "parts": total}
-        except FloodWaitError as exc:
-            last_error = f"FloodWait {exc.seconds}s"
-            log.warning("relay FloodWait %ss on @%s", exc.seconds, helper.username)
-            await asyncio.sleep(min(exc.seconds, 30))
         except Exception as exc:
-            last_error = str(exc) or type(exc).__name__
-            log.warning("relay failed helper=@%s: %s", helper.username, last_error)
-        finally:
-            await _release(redis, helper.username)
-        streak = int(await redis.incr(f"xsaveasbot:relay:streak:{helper.username}"))
+            last_error = f"copy failed: {exc}"
+            log.warning("relay copy failed helper=@%s: %s", helper.username, exc)
+            await _record_failure(ctx, helper, last_error)
+            continue
+        await redis.delete(f"xsaveasbot:relay:streak:{helper.username}")
         async with sm() as session:
-            await registry.record_result(
-                session, helper.id, ok=False, error=last_error, streak=streak
-            )
+            await registry.record_result(session, helper.id, ok=True, latency_ms=latency)
             await session.commit()
-        if streak >= registry.FAILS_BEFORE_COOLDOWN:
-            await redis.delete(f"xsaveasbot:relay:streak:{helper.username}")
+        log.info("relay ok helper=@%s key=%s parts=%d %dms", helper.username, key, total, latency)
+        return {"ok": True, "helper": helper.username, "parts": total}
     return {"ok": False, "error": last_error}
