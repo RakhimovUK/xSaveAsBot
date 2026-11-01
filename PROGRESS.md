@@ -25,6 +25,17 @@ Built in one go (owner asked to finish the code, then test together):
   /helper_off /stats /health /ban /unban`.
 - 97 tests; extractor probe verified on the server for Instagram, Pinterest, Facebook, SoundCloud.
 
+### Relay helpers (live-tested 2026-11-02 with a YouTube link, 13 s end to end)
+`RELAY_PARALLEL=2`: the two best helpers are asked at once, the first valid media wins, the other
+is cancelled (losing a race is not a failure). Registered on the server:
+- `@TinglaBot` prio 5, all platforms — works (Video/Audio buttons) — **primary**.
+- `@SaveYoutubeBot` prio 10, youtube — shows quality buttons; slow/unreliable for us so far.
+- `@SaveAsBot` prio 20, everything except youtube ("YouTube not supported" in its replies).
+- `@Gozilla_bot` prio 30, **disabled**: demands joining channels. Join them with the userbot
+  account and `/helper_on @Gozilla_bot` to use it.
+Live-test fixes: thumbnail photos are never accepted as video results, audio/preview/trim
+buttons are skipped, <=720p preferred, 60 s stall timeout, `/start` handshake per helper.
+
 ### Known facts / risks
 - **YouTube blocks the Oracle IP** ("confirm you're not a bot"; tested 5 clients + bgutil PO
   token). YouTube therefore goes through the **helper-bot relay**; the picker only appears when
