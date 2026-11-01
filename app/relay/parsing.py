@@ -86,26 +86,57 @@ def classify_message(msg: Any, wants: str = "any") -> str:
     return "progress"
 
 
+HEIGHT_RE = re.compile(r"(?<!\d)(\d{3,4})p\b")
+# Buttons that never lead to the video itself
+AVOID_FOR_VIDEO = (
+    *AUDIO_PREFS,
+    "превью",
+    "preview",
+    "обрезк",
+    "trim",
+    "текст",
+    "text",
+    "перейти",
+    "channel",
+    "subscribed",
+)
+DEFAULT_MAX_HEIGHT = 720  # a sensible quality/size trade-off when no height is requested
+
+
 def choose_button(rows: list[list[Any]], variant: str | None) -> tuple[int, int] | None:
-    """Pick the inline button matching the wanted variant; skip URL buttons."""
-    prefs: tuple[str, ...]
-    if variant == "mp3":
-        prefs = AUDIO_PREFS
-    elif variant and variant.endswith("p") and variant[:-1].isdigit():
-        prefs = (variant[:-1], *VIDEO_PREFS)
-    else:
-        prefs = VIDEO_PREFS
+    """Pick the inline button for the wanted variant. URL buttons are never clicked.
+
+    Returns None when nothing suitable exists (better to wait/fail than to click
+    "Audio" for a video or an unrelated "Preview"/"Trim" button)."""
     clickable = [
         (i, j, (getattr(b, "text", "") or "").lower())
         for i, row in enumerate(rows)
         for j, b in enumerate(row)
         if not getattr(b, "url", None)
     ]
-    for pref in prefs:
-        for i, j, text in clickable:
-            if re.search(re.escape(pref), text):
+    if variant == "mp3":
+        for pref in AUDIO_PREFS:
+            for i, j, text in clickable:
+                if pref in text:
+                    return i, j
+        return None
+
+    usable = [c for c in clickable if not any(word in c[2] for word in AVOID_FOR_VIDEO)]
+    heights = sorted(
+        (int(m.group(1)), i, j) for i, j, text in usable if (m := HEIGHT_RE.search(text))
+    )
+    if heights:
+        want = DEFAULT_MAX_HEIGHT
+        if variant and variant.endswith("p") and variant[:-1].isdigit():
+            want = int(variant[:-1])
+        not_above = [h for h in heights if h[0] <= want]
+        _, i, j = not_above[-1] if not_above else heights[0]
+        return i, j
+    for pref in ("video", "видео", "mp4", "best", "лучш", "download", "скачать", "yuklab"):
+        for i, j, text in usable:
+            if pref in text:
                 return i, j
-    return (clickable[0][0], clickable[0][1]) if clickable else None
+    return (usable[0][0], usable[0][1]) if usable else None
 
 
 def media_plausible(msg: Any, expected_duration: float | None) -> bool:

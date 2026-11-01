@@ -280,3 +280,25 @@ def test_video_and_audio_documents_match():
     assert classify_message(video, "audio") == "progress"
     video_with_buttons = typed("", MessageMediaDocument(), [[button("More")]], mime="video/mp4")
     assert classify_message(video_with_buttons, "video") == "media"
+
+
+def test_button_choice_skips_audio_and_preview_buttons():
+    # SaveYoutubeBot-like prompt: low heights, audio, preview, trim, text
+    rows = [
+        [button("⚡ 144p"), button("⚡ 240p")],
+        [button("🔉 MP3"), button("🖼 Превью")],
+        [button("✂️ Обрезка"), button("📹 → 📑 в текст")],
+    ]
+    assert choose_button(rows, None) == (0, 1)  # best of what is offered, not the first button
+    assert choose_button(rows, "mp3") == (1, 0)
+    # TinglaBot-like prompt
+    assert choose_button([[button("🎞 Video"), button("🎧 Audio")]], None) == (0, 0)
+    assert choose_button([[button("🎞 Video"), button("🎧 Audio")]], "mp3") == (0, 1)
+    # Gozilla-like: only an audio button -> do not click for a video
+    assert choose_button([[button("🔸🔉Audio - 221.2KB")]], None) is None
+    assert choose_button([[button("Channel #1"), button("✅ I subscribed")]], None) is None
+    # heights: default caps at 720, explicit request is honoured
+    hs = [[button("360p"), button("720p"), button("1080p")]]
+    assert choose_button(hs, None) == (0, 1) and choose_button(hs, "1080p") == (0, 2)
+    assert choose_button([[button("1080p"), button("1440p")]], None) == (0, 0)  # lowest available
+    assert choose_button([[button("MP3 only")]], "720p") is None

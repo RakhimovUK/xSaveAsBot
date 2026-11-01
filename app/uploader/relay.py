@@ -22,6 +22,7 @@ from app.bot.media_utils import key_tag
 from app.config import Settings
 from app.relay import registry
 from app.relay.parsing import (
+    JOIN_MARKERS,
     choose_button,
     classify_message,
     media_plausible,
@@ -32,6 +33,7 @@ log = logging.getLogger(__name__)
 
 POLL_S = 2.0
 ALBUM_QUIET_S = 5.0  # wait this long after the last media message for album siblings
+STALL_S = 60.0  # give up on a helper that shows no new activity for this long
 
 
 class RelayError(Exception):
@@ -72,11 +74,16 @@ async def converse(
     last_media_at: float | None = None
     last_problem: str | None = None
     logged: set[int] = set()
+    last_activity = time.monotonic()
+    signature: tuple | None = None
 
     while time.monotonic() < deadline:
         await asyncio.sleep(POLL_S)
         messages = await client.get_messages(entity, min_id=last_id, limit=40)
         incoming = [m for m in reversed(messages) if not m.out]
+        sig = tuple((m.id, m.message or "", bool(m.media)) for m in incoming)
+        if sig != signature:
+            signature, last_activity = sig, time.monotonic()  # new message or edited progress
         for msg in incoming:
             verdict = classify_message(msg, wants)
             if msg.id not in logged:
@@ -100,9 +107,15 @@ async def converse(
                 if pick:
                     log.info("relay %s: clicking button %s", username, pick)
                     try:
-                        await msg.click(*pick)
+                        answer = await msg.click(*pick)
                     except Exception as exc:
                         log.warning("relay %s: click failed: %s", username, exc)
+                    else:
+                        popup = (getattr(answer, "message", None) or "").strip()
+                        if popup:
+                            log.info("relay @%s: button answer: %r", username, popup[:120])
+                            if any(m in popup.lower() for m in JOIN_MARKERS):
+                                raise RelayError(f"junk/subscription prompt: {popup[:120]}")
             elif verdict == "junk":
                 last_problem = f"junk/subscription prompt: {(msg.message or '')[:120]}"
             elif verdict == "error":
@@ -111,6 +124,8 @@ async def converse(
             return [media[i] for i in sorted(media)]
         if last_problem and not media:
             raise RelayError(last_problem)
+        if not media and time.monotonic() - last_activity > STALL_S:
+            raise RelayError("stalled: helper stopped responding")
     if media:
         return [media[i] for i in sorted(media)]
     raise RelayError(last_problem or "timeout: no media from helper")
