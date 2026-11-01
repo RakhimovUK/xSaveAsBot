@@ -1,6 +1,15 @@
 # Progress
 
-## Phase 1: Skeleton — code done, waiting for owner's live test
+## Deployment
+Production runs 24/7 on an Oracle Cloud Always Free ARM VM (Ubuntu 24.04, Docker Compose, all five
+services on one host). Server IP is intentionally not recorded in this public repo.
+- Server prep: `scripts/server_setup.sh` (done 2026-11-01).
+- Deploy/update: copy `.env` with `scp` (never via git), then on the server `bash scripts/deploy.sh`.
+- Logs: `docker compose logs -f bot` (also `worker`, `uploader`) in `~/xSaveAsBot`.
+- 2026-11-01: first deploy OK — migration 0001 applied on Postgres, bot polling as @xSaveAsBot,
+  worker and uploader connected to Redis, userbot connected.
+
+## Phase 1: Skeleton — deployed, waiting for owner's live Telegram test
 
 ### Done
 - Repo layout, `CLAUDE.md`, `docs/BRIEF.md`, `.env.example`, `.gitignore` (secrets excluded; repo is public).
@@ -16,9 +25,11 @@
 - 33 tests pass (ReplyTarget cases, Sender, i18n parity, config, pending, migration on SQLite,
   dispatcher flow: echo in General + 3 topics, picker in topic, storage post → topic delivery).
 
-### Not verified yet (no Docker / Redis / Postgres / tokens on the dev machine)
-- Real Redis arq round-trip (`/ping`), real Postgres migration, real Telegram calls,
-  userbot login/upload. Docker images were not built.
+### Verified on the server
+- Docker images build on ARM, Postgres migration, bot polling, worker/uploader start, userbot login.
+
+### Not verified yet (needs the owner in Telegram)
+- `/ping` arq round-trip, `/testupload` storage round-trip, topic routing in a real forum group.
 
 ### Test commands for the owner (Phase 1)
 1. Fill `.env` from `.env.example` (BOT_TOKEN, ADMIN_IDS, TG_API_ID/HASH, STORAGE_CHANNEL_DEFAULT).
