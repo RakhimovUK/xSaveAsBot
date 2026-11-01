@@ -20,8 +20,8 @@ pytest + pytest-asyncio · ruff.
 | Process  | Entry                     | Role |
 |----------|---------------------------|------|
 | bot      | `python -m app.bot.main`  | Bot API, handlers never block; receives storage `channel_post`s |
-| worker   | `python -m app.worker.main` | arq queue `xsaveasbot:worker`: probe/download (Phase 2+) |
-| uploader | `python -m app.uploader.main` | arq queue `xsaveasbot:uploader`; the ONLY owner of userbot sessions |
+| worker   | `python -m app.worker.main` | arq queue `xsaveasbot:worker`: `process_link` runs the delivery ladder |
+| uploader | `python -m app.uploader.main` | arq queue `xsaveasbot:uploader`: `upload_files`, `relay_fetch`; the ONLY owner of userbot sessions |
 
 Never open a Telethon session outside the uploader (one process per session).
 The helper-bot relay (Phase 5) depends on third-party bots and can break at any time; it is a fallback.
@@ -35,7 +35,10 @@ app/bot/sender.py        THE ONLY place that sends bot messages (applies ReplyTa
 app/bot/targets.py       ReplyTarget builders with per-group fallback setting
 app/bot/middlewares/     context: DB session, user/group upsert, lang, translator `t`
 app/bot/routers/         start, debug (Phase 1 test cmds + echo), storage_posts
-app/delivery/pending.py  Redis list key -> waiters (ReplyTarget + lang); dedup
+app/delivery/            pending (waiters), cache, finalize (parts->cache->deliver), send (albums),
+                         ladder (cache->url-send->relay->self), captions, egress budget, jobs
+app/extractors/          url_utils (detect/keys), ytdlp, gallerydl, threads, service (chains), errors
+app/relay/, uploader/relay.py  helper-bot registry + parsing; userbot conversation with helpers
 app/db/                  models, session, repo; migrations in alembic/versions
 app/queue/               queue names, Redis settings
 app/worker/, app/uploader/  arq workers
@@ -64,3 +67,7 @@ alembic upgrade head
 docker compose up --build              # all services locally
 docker compose -f docker-compose.worker.yml up --build   # Mode A laptop side
 ```
+
+## Production
+Oracle Cloud Always Free VM, everything via Docker Compose; deploy with `scripts/deploy.sh`
+(`.env` is copied with scp, never committed). YouTube is blocked on that IP -> relay.

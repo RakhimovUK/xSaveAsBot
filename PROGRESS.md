@@ -9,6 +9,37 @@ services on one host). Server IP is intentionally not recorded in this public re
 - 2026-11-01: first deploy OK — migration 0001 applied on Postgres, bot polling as @xSaveAsBot,
   worker and uploader connected to Redis, userbot connected.
 
+## Phase 2+ (delivery core, relay, platforms) — deployed 2026-11-02, awaiting live test
+Built in one go (owner asked to finish the code, then test together):
+- URL detection + canonical keys for all 15 platforms; yt-dlp 2026.10.26 (+Deno for YouTube),
+  gallery-dl fallback, custom Threads parser, typed errors (`app/extractors`).
+- Ladder (`app/delivery/ladder.py`): cache -> url-send -> relay -> self download; per-platform
+  url-send auto-disable, daily egress budget, `downloads` table, dedup via pending waiters.
+- Storage posts are tagged `#key <key> #part i/n`; albums are reassembled in Redis, cached in
+  `media_cache`, delivered to every waiter in its own chat/topic; captions built fresh.
+- Relay (`app/uploader/relay.py`): helper registry in DB, userbot converses with the helper bot,
+  clicks quality buttons, filters junk/subscribe/error replies, validates duration, copies media
+  to the storage channel, 3 fails -> 10 min cooldown, failover to the next helper.
+- Bot: link handler (rate limit, ban, group auto-download + allowed topics), YouTube quality
+  picker (`yv:` callbacks), admin commands `/helpers /helper_add /helper_remove /helper_on
+  /helper_off /stats /health /ban /unban`.
+- 97 tests; extractor probe verified on the server for Instagram, Pinterest, Facebook, SoundCloud.
+
+### Known facts / risks
+- **YouTube blocks the Oracle IP** ("confirm you're not a bot"; tested 5 clients + bgutil PO
+  token). YouTube therefore goes through the **helper-bot relay**; the picker only appears when
+  a direct probe works (e.g. after adding cookies / WARP). Relay needs at least one helper bot.
+- Vimeo and Reddit need login from this IP -> relay. TikTok probe timed out from the server once.
+- Threads parser is best-effort (no public API); falls back to gallery-dl, then relay.
+- Instagram image posts/stories may need session cookies (`INSTAGRAM_SESSIONS_DIR/*.txt`).
+
+### Next steps
+1. Owner adds a helper bot: `/helper_add @username all 10` then tests links (Instagram, Pinterest,
+   YouTube via relay, TikTok). Check `/health` and `/stats`.
+2. Not built yet (next week, after limit reset): music (Shazam, song search, lyrics), inline mode,
+   group `/settings`, broadcast, mandatory subscription, ad footer, Stars premium, `rebuild_cache`,
+   webhook mode, TikTok no-watermark/slideshow specifics, Spotify, cookie/session rotation admin.
+
 ## Phase 1: Skeleton — deployed, waiting for owner's live Telegram test
 
 ### Done
