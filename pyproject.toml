@@ -12,6 +12,11 @@ dependencies = [
     "asyncpg==0.32.0",
     "pydantic-settings==2.16.2",
     "fluent.runtime==0.4.0",
+    "httpx==0.28.1",
+    # YouTube needs a JS runtime (deno) + the EJS solver bundled in yt-dlp[default]
+    "yt-dlp[default]==2026.10.26",
+    "deno==2.9.8",
+    "gallery-dl==1.32.19",
 ]
 
 [project.optional-dependencies]
@@ -45,4 +50,5 @@ target-version = "py312"
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP", "ASYNC", "RUF"]
 # RUF012: arq WorkerSettings use plain class attributes
-ignore = ["RUF001", "RUF002", "RUF003", "RUF012"]
+# ASYNC109/240: explicit timeouts and tiny local Path calls are intentional
+ignore = ["RUF001", "RUF002", "RUF003", "RUF012", "ASYNC109", "ASYNC240"]

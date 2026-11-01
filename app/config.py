@@ -67,16 +67,36 @@ class Settings(BaseSettings):
 
     # Feature flags
     platforms_enabled: Annotated[list[str], NoDecode] = Field(
-        default_factory=lambda: ["instagram", "youtube", "tiktok", "threads", "pinterest"]
+        default_factory=lambda: [
+            "youtube",
+            "instagram",
+            "tiktok",
+            "threads",
+            "pinterest",
+            "facebook",
+            "twitter",
+            "snapchat",
+            "likee",
+            "vk",
+            "soundcloud",
+            "reddit",
+            "twitch",
+            "vimeo",
+        ]
     )
     feature_lyrics: bool = True
     feature_relay: bool = True
-    relay_tier2: bool = False
+    relay_tier2: bool = True
     feature_url_send: bool = True
     feature_mandatory_sub: bool = False
     feature_ads: bool = False
     feature_premium: bool = False
     feature_echo: bool = True
+
+    # Shared between worker and uploader (same volume / same machine)
+    jobs_dir: str = "/tmp/xsaveasbot-jobs"
+    url_send_max_mb: int = 20
+    url_send_photo_max_mb: int = 5
 
     # Anti-blocking
     instagram_sessions_dir: str = "./secrets/instagram"

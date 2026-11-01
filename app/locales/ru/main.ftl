@@ -39,3 +39,27 @@ testupload-sent = ⏳ Юзербот загружает тестовый фай�
 testupload-fail = ❌ Ошибка загрузчика: { $error }
 testupload-done = ✅ Пришло из канала-хранилища. file_id: <code>{ $file_id }</code>
 userbot-status = 🤖 Юзербот: { $status }
+
+status-analyzing = ⏳ Анализирую…
+status-downloading = ⏳ Скачиваю…
+status-uploading = ⏳ Загружаю в Telegram…
+status-relay = ⏳ Получаю через другой источник…
+status-queued-shared = ⏳ Этот файл уже готовится, скоро пришлю…
+picker-title =
+    🎬 <b>{ $title }</b>
+
+    Выберите качество:
+unsupported-link = 🤷 Эта ссылка не поддерживается.
+send-link-hint = 🔗 Отправьте ссылку (Instagram, YouTube, TikTok, Threads, Pinterest и другие).
+err-unsupported = 🤷 Эта ссылка не поддерживается.
+err-disabled = 🚧 Эта платформа временно отключена.
+err-private = 🔒 Контент закрытый (private), скачать нельзя.
+err-notfound = 🗑 Контент не найден или удалён.
+err-age = 🔞 Контент с возрастным ограничением, скачать нельзя.
+err-toolarge = 📦 Файл слишком большой.
+err-toolong = ⏱ Видео слишком длинное.
+err-unavailable = 😕 Эта платформа сейчас временно недоступна. Попробуйте позже.
+err-budget = 📉 Дневной лимит исчерпан. Попробуйте завтра.
+err-ratelimit = ⏳ Слишком много запросов, подождите минуту.
+err-nostorage = ⚠️ Файл подготовлен, но доставить не удалось. Попробуйте ещё раз.
+err-generic = ❌ Произошла ошибка. Попробуйте позже.

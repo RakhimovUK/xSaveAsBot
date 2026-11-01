@@ -3,6 +3,7 @@ x-app-env: &app-env
   env_file: .env
   environment:
     DATABASE_URL: postgresql+asyncpg://xsaveasbot:xsaveasbot@postgres:5432/xsaveasbot
+    JOBS_DIR: /jobs
     REDIS_URL: redis://redis:6379/0
   restart: unless-stopped
 
@@ -40,6 +41,7 @@ services:
   worker:
     <<: *app-env
     build: { context: ., dockerfile: Dockerfile.worker }
+    volumes: [jobs:/jobs]
     depends_on:
       redis: { condition: service_healthy }
 
@@ -47,8 +49,10 @@ services:
   uploader:
     <<: *app-env
     build: { context: ., dockerfile: Dockerfile.uploader }
+    volumes: [jobs:/jobs]
     depends_on:
       redis: { condition: service_healthy }
 
 volumes:
   pgdata:
+  jobs:

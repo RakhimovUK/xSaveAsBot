@@ -118,6 +118,47 @@ class Sender:
             return False
         return await self._call(target, self.bot.send_chat_action, reply=False, action=action)
 
+    # --- storage channel + housekeeping (no user-facing reply target) ------------
+
+    async def to_channel(
+        self, kind: str, channel_id: int, media: Any, caption: str | None, **kwargs: Any
+    ) -> Message:
+        """Post media (file_id or URL) to a storage channel; the response carries file_id."""
+        method, param = {
+            "photo": (self.bot.send_photo, "photo"),
+            "video": (self.bot.send_video, "video"),
+            "audio": (self.bot.send_audio, "audio"),
+            "animation": (self.bot.send_animation, "animation"),
+        }.get(kind, (self.bot.send_document, "document"))
+        return await method(chat_id=channel_id, caption=caption, **{param: media}, **kwargs)
+
+    async def delete(self, chat_id: int | None, message_id: int | None) -> None:
+        if chat_id is None or message_id is None:
+            return
+        try:
+            await self.bot.delete_message(chat_id=chat_id, message_id=message_id)
+        except Exception:  # already deleted / no rights: housekeeping only
+            log.debug("delete failed chat=%s msg=%s", chat_id, message_id)
+
+    async def edit_status(
+        self,
+        text: str,
+        *,
+        chat_id: int | None,
+        message_id: int | None,
+        reply_markup: InlineKeyboardMarkup | None = None,
+    ) -> bool:
+        if chat_id is None or message_id is None:
+            return False
+        try:
+            await self.bot.edit_message_text(
+                text=text, chat_id=chat_id, message_id=message_id, reply_markup=reply_markup
+            )
+            return True
+        except Exception:
+            log.debug("edit_status failed chat=%s msg=%s", chat_id, message_id)
+            return False
+
     # --- edits (no thread id needed: the message already lives in its topic) ----
 
     async def edit_text(

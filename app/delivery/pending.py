@@ -26,6 +26,7 @@ class PendingDelivery:
     target: ReplyTarget
     lang: str
     user_id: int | None = None
+    status_message_id: int | None = None
 
     def to_json(self) -> str:
         return json.dumps(
@@ -33,6 +34,7 @@ class PendingDelivery:
                 "target": json.loads(self.target.to_json()),
                 "lang": self.lang,
                 "user_id": self.user_id,
+                "status_message_id": self.status_message_id,
             },
             separators=(",", ":"),
         )
@@ -41,7 +43,10 @@ class PendingDelivery:
     def from_json(cls, raw: str | bytes) -> PendingDelivery:
         data = json.loads(raw)
         return cls(
-            target=ReplyTarget(**data["target"]), lang=data["lang"], user_id=data.get("user_id")
+            target=ReplyTarget(**data["target"]),
+            lang=data["lang"],
+            user_id=data.get("user_id"),
+            status_message_id=data.get("status_message_id"),
         )
 
 

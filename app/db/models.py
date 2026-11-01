@@ -54,12 +54,50 @@ class MediaCache(Base):
     key: Mapped[str] = mapped_column(String(255), unique=True, index=True)
     platform: Mapped[str] = mapped_column(String(32))
     kind: Mapped[str] = mapped_column(String(32))  # video | photo | audio | document | album
-    bot_file_ids: Mapped[list[str]] = mapped_column(JSON, default=list)
+    # [{kind, file_id, file_unique_id, size, chat_id, message_id}, ...] in album order
+    bot_file_ids: Mapped[list[dict]] = mapped_column(JSON, default=list)
     storage_channel_id: Mapped[int] = mapped_column(BigInteger)
     storage_message_ids: Mapped[list[int]] = mapped_column(JSON, default=list)
     caption: Mapped[str | None] = mapped_column(Text)
     size: Mapped[int | None] = mapped_column(BigInteger)
     hits: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class Download(Base):
+    """One processed link request: which ladder step served it and what it cost."""
+
+    __tablename__ = "downloads"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int | None] = mapped_column(BigInteger, index=True)
+    platform: Mapped[str | None] = mapped_column(String(32), index=True)
+    key: Mapped[str | None] = mapped_column(String(255))
+    method: Mapped[str | None] = mapped_column(String(16))  # cache | url | relay | self
+    status: Mapped[str] = mapped_column(String(16))  # ok | error
+    error_class: Mapped[str | None] = mapped_column(String(32))
+    bytes_egress: Mapped[int] = mapped_column(BigInteger, default=0, server_default="0")
+    duration_ms: Mapped[int | None] = mapped_column(Integer)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), index=True
+    )
+
+
+class HelperBot(Base):
+    """External saver bots used by the userbot relay (brief section 3)."""
+
+    __tablename__ = "helper_bots"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    username: Mapped[str] = mapped_column(String(64), unique=True)
+    platforms: Mapped[str] = mapped_column(String(255), default="all", server_default="all")
+    priority: Mapped[int] = mapped_column(Integer, default=100, server_default="100")
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
+    success: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    fail: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    avg_latency_ms: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    last_error: Mapped[str | None] = mapped_column(Text)
+    cooldown_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 

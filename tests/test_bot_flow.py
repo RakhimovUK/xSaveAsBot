@@ -42,6 +42,7 @@ async def env():
     dp["settings"] = settings
     dp["sender"] = Sender(api)
     dp["arq"] = redis
+    dp["bot_username"] = "xBot"
     yield dp, api, redis
     await engine.dispose()
 
@@ -105,7 +106,7 @@ async def test_storage_post_delivers_to_waiting_topic(env):
     await feed(dp, post)
     kw = api.send_photo.call_args.kwargs
     assert (kw["chat_id"], kw["message_thread_id"], kw["photo"]) == (FORUM, 22, "FID")
-    assert "FID" in kw["caption"]
+    assert kw["caption"] == "@xBot"
 
 
 async def test_posts_from_other_channels_are_ignored(env):
@@ -123,3 +124,67 @@ async def test_posts_from_other_channels_are_ignored(env):
     )
     await feed(dp, post)
     api.send_photo.assert_not_called()
+
+
+async def test_link_in_topic_enqueues_job_with_topic_target(env):
+    dp, api, redis = env
+    redis.enqueue_job = AsyncMock()
+    api.send_message.return_value = MagicMock(message_id=321)
+    await feed(dp, topic_update("watch https://www.instagram.com/reel/De9oyINo2eW/?cplk=x", 55))
+    (name, payload), kwargs = redis.enqueue_job.call_args.args, redis.enqueue_job.call_args.kwargs
+    assert name == "process_link" and kwargs["_queue_name"] == "xsaveasbot:worker"
+    target = ReplyTarget.from_json(payload["target"])
+    assert (target.chat_id, target.message_thread_id) == (FORUM, 55)
+    assert payload["status_message_id"] == 321 and payload["variant"] is None
+    assert api.send_message.call_args.kwargs["message_thread_id"] == 55  # the ⏳ status
+
+
+async def test_unsupported_link_ignored_in_group_answered_in_private(env):
+    dp, api, redis = env
+    redis.enqueue_job = AsyncMock()
+    await feed(dp, topic_update("https://example.com/a", 55))
+    api.send_message.assert_not_called()
+    redis.enqueue_job.assert_not_called()
+
+
+async def test_quality_button_continues_in_same_topic(env):
+    dp, _, redis = env
+    redis.enqueue_job = AsyncMock()
+    user_link = {
+        "message_id": 900,
+        "date": datetime.now(UTC),
+        "chat": {"id": FORUM, "type": "supergroup", "is_forum": True},
+        "message_thread_id": 55,
+        "is_topic_message": True,
+        "text": "https://youtu.be/dQw4w9WgXcQ",
+    }
+    picker = {
+        "message_id": 901,
+        "date": datetime.now(UTC),
+        "chat": {"id": FORUM, "type": "supergroup", "is_forum": True},
+        "message_thread_id": 55,
+        "is_topic_message": True,
+        "text": "choose",
+        "reply_to_message": user_link,
+    }
+    update = Update(
+        update_id=9,
+        callback_query={
+            "id": "1",
+            "from": {"id": 42, "is_bot": False, "first_name": "Ali"},
+            "chat_instance": "ci",
+            "message": picker,
+            "data": "yv:dQw4w9WgXcQ:720p",
+        },
+    )
+    bot = Bot("123456:TEST")
+    try:
+        bot.session.make_request = AsyncMock(return_value=True)  # callback.answer()
+        await dp.feed_update(bot, update)
+    finally:
+        await bot.session.close()
+    payload = redis.enqueue_job.call_args.args[1]
+    target = ReplyTarget.from_json(payload["target"])
+    assert (target.message_thread_id, target.reply_to_message_id) == (55, 900)
+    assert payload["variant"] == "720p" and payload["status_message_id"] == 901
+    assert payload["url"].endswith("dQw4w9WgXcQ")

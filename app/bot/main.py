@@ -11,7 +11,7 @@ from aiogram.enums import ParseMode
 from arq import create_pool
 
 from app.bot.middlewares.context import ContextMiddleware
-from app.bot.routers import debug, start, storage_posts
+from app.bot.routers import admin, debug, links, start, storage_posts
 from app.bot.sender import Sender
 from app.config import get_settings
 from app.db.session import make_engine, make_sessionmaker
@@ -23,9 +23,9 @@ log = logging.getLogger(__name__)
 
 def build_dispatcher(echo: bool) -> Dispatcher:
     dp = Dispatcher()
-    dp.include_routers(storage_posts.router, start.router, debug.router)
-    if echo:
-        dp.include_router(debug.echo_router)  # last: catches remaining text
+    dp.include_routers(storage_posts.router, start.router, debug.router, admin.router, links.router)
+    # Last: plain text without a link (echo is a Phase 1 test aid, off in production)
+    dp.include_router(debug.echo_router if echo else links.fallback_router)
     return dp
 
 
@@ -44,6 +44,7 @@ async def main() -> None:
     dp["arq"] = arq_redis
 
     me = await bot.get_me()
+    dp["bot_username"] = me.username
     log.info("Bot @%s started, storage channels=%s", me.username, settings.all_storage_channel_ids)
     try:
         if settings.mode == "webhook":

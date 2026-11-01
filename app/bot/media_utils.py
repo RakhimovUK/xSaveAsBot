@@ -16,8 +16,17 @@ def parse_key(caption: str | None) -> str | None:
     return match.group(1) if match else None
 
 
-def key_tag(key: str) -> str:
-    return f"#key {key}"
+PART_RE = re.compile(r"#part\s+(\d+)/(\d+)")
+
+
+def key_tag(key: str, index: int = 1, total: int = 1) -> str:
+    """Caption tag of a storage post: `#key <cache-key> #part i/n` (albums = several posts)."""
+    return f"#key {key} #part {index}/{total}"
+
+
+def parse_part(caption: str | None) -> tuple[int, int]:
+    match = PART_RE.search(caption or "")
+    return (int(match.group(1)), int(match.group(2))) if match else (1, 1)
 
 
 @dataclass(frozen=True, slots=True)
