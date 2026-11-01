@@ -1,0 +1,13 @@
+# Mode A: worker + uploader on the laptop, bot/Postgres/Redis on Railway.
+# Put Railway's PUBLIC TCP proxy URLs into .env (DATABASE_URL, REDIS_URL), then:
+#   docker compose -f docker-compose.worker.yml up --build
+services:
+  worker:
+    build: { context: ., dockerfile: Dockerfile.worker }
+    env_file: .env
+    restart: unless-stopped
+
+  uploader:
+    build: { context: ., dockerfile: Dockerfile.uploader }
+    env_file: .env
+    restart: unless-stopped

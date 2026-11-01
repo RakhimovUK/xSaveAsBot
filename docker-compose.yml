@@ -1,0 +1,52 @@
+# Local dev: everything in Docker. `docker compose up --build`
+x-app-env: &app-env
+  env_file: .env
+  environment:
+    DATABASE_URL: postgresql+asyncpg://xsaver:xsaver@postgres:5432/xsaver
+    REDIS_URL: redis://redis:6379/0
+  restart: unless-stopped
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: xsaver
+      POSTGRES_PASSWORD: xsaver
+      POSTGRES_DB: xsaver
+    ports: ["5432:5432"]
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U xsaver"]
+      interval: 3s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      retries: 20
+
+  bot:
+    <<: *app-env
+    build: { context: ., dockerfile: Dockerfile.bot }
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+
+  worker:
+    <<: *app-env
+    build: { context: ., dockerfile: Dockerfile.worker }
+    depends_on:
+      redis: { condition: service_healthy }
+
+  # Owns the userbot session(s). Run exactly ONE instance per session.
+  uploader:
+    <<: *app-env
+    build: { context: ., dockerfile: Dockerfile.uploader }
+    depends_on:
+      redis: { condition: service_healthy }
+
+volumes:
+  pgdata:

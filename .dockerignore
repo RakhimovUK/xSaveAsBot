@@ -1,0 +1,14 @@
+.env
+.env.*
+!.env.example
+.venv
+.git
+**/__pycache__
+.pytest_cache
+.ruff_cache
+*.session
+cookies*.txt
+secrets
+sessions
+tmp
+data

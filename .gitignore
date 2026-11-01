@@ -1,0 +1,32 @@
+# Secrets: never commit (the GitHub repo is public)
+.env
+.env*
+!.env.example
+*.session
+*.session-journal
+cookies*.txt
+secrets/
+sessions/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+build/
+dist/
+
+# Local data
+*.sqlite3
+*.db
+tmp/
+data/
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
