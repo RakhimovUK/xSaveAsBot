@@ -31,6 +31,7 @@ from app.relay.parsing import (
     media_plausible,
     wanted_kind,
 )
+from app.uploader.subscribe import auto_subscribe
 
 log = logging.getLogger(__name__)
 
@@ -64,6 +65,7 @@ async def converse(
     expected_duration: float | None,
     timeout_s: float,
     wants: str = "any",
+    ctx_redis: Redis | None = None,
 ) -> list[Any]:
     """Send `url` to the helper and return its media messages (an album = several)."""
     entity = await client.get_entity(username)
@@ -79,6 +81,9 @@ async def converse(
     logged: set[int] = set()
     last_activity = time.monotonic()
     signature: tuple | None = None
+    stale: set[int] = set()  # messages from before a subscription, ignored afterwards
+    subscribed = False
+    redis = ctx_redis
 
     while time.monotonic() < deadline:
         await asyncio.sleep(POLL_S)
@@ -88,6 +93,8 @@ async def converse(
         if sig != signature:
             signature, last_activity = sig, time.monotonic()  # new message or edited progress
         for msg in incoming:
+            if msg.id in stale:
+                continue
             verdict = classify_message(msg, wants)
             if msg.id not in logged:
                 logged.add(msg.id)
@@ -120,6 +127,15 @@ async def converse(
                             if any(m in popup.lower() for m in JOIN_MARKERS):
                                 raise RelayError(f"junk/subscription prompt: {popup[:120]}")
             elif verdict == "junk":
+                if redis is not None and not subscribed and msg.buttons:
+                    subscribed = True
+                    if await auto_subscribe(client, redis, username, msg):
+                        await asyncio.sleep(3)
+                        stale |= {m.id for m in incoming}
+                        last_problem, signature = None, None
+                        last_activity = time.monotonic()
+                        await client.send_message(entity, url)
+                        break
                 last_problem = f"junk/subscription prompt: {(msg.message or '')[:120]}"
             elif verdict == "error":
                 last_problem = f"helper error: {(msg.message or '')[:120]}"
@@ -170,6 +186,7 @@ async def _attempt(
             expected_duration,
             settings.relay_timeout_s,
             wants,
+            redis,
         )
         return helper, messages, int((time.monotonic() - started) * 1000)
     finally:
@@ -201,6 +218,18 @@ async def _store_facts(redis: Redis, key: str, msg: Any) -> None:
         facts["flag"] = flag
     if facts:
         await set_meta(redis, key, {**await get_meta(redis, key), **facts})
+
+
+async def relay_probe(ctx: dict[str, Any], username: str, url: str) -> dict[str, Any]:
+    """Admin/debug: ask one helper for `url` and report what came back (nothing is stored)."""
+    client: TelegramClient = ctx["userbots"].get()
+    redis: Redis = ctx["redis"]
+    try:
+        await _ensure_started(client, redis, username)
+        messages = await converse(client, username, url, None, None, 75, "any", redis)
+    except Exception as exc:
+        return {"ok": False, "error": str(exc) or type(exc).__name__}
+    return {"ok": True, "media": len(messages), "kind": type(messages[0].media).__name__}
 
 
 async def relay_fetch(

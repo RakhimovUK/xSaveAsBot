@@ -53,7 +53,7 @@ async def helper_row(ctx, username):
 
 
 def patch(monkeypatch, behaviors):
-    async def fake_converse(client, username, url, variant, expected, timeout, wants="any"):
+    async def fake_converse(client, username, url, variant, expected, timeout, wants="any", redis=None):
         return await behaviors[username]()
 
     async def no_start(client, redis, username):
@@ -124,7 +124,7 @@ async def test_youtube_prefers_youtube_helper_and_no_helpers_message(ctx, monkey
     async def ok():
         return [media(1)]
 
-    async def record(client, username, url, variant, expected, timeout, wants="any"):
+    async def record(client, username, url, variant, expected, timeout, wants="any", redis=None):
         seen.append(username)
         return [media(1)]
 
@@ -143,3 +143,13 @@ async def test_youtube_prefers_youtube_helper_and_no_helpers_message(ctx, monkey
         await session.commit()
     res = await relay.relay_fetch(ctx, "yt:Z", "https://y", "youtube", None, -1001, None)
     assert res == {"ok": False, "error": "no helper bots available"}
+
+
+def test_parse_channel_link():
+    from app.uploader.subscribe import parse_channel_link
+
+    assert parse_channel_link("https://t.me/somechannel") == ("name", "somechannel")
+    assert parse_channel_link("https://t.me/+AbCd123") == ("invite", "AbCd123")
+    assert parse_channel_link("https://t.me/joinchat/AbCd123") == ("invite", "AbCd123")
+    assert parse_channel_link("https://t.me/saveyoutubebot") is None
+    assert parse_channel_link("https://example.com/x") is None

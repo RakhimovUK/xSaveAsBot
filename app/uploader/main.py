@@ -20,7 +20,7 @@ from app.db.session import make_engine, make_sessionmaker
 from app.logging_setup import setup_logging
 from app.media.testfile import write_png
 from app.queue import UPLOADER_QUEUE, redis_settings
-from app.uploader.relay import relay_fetch
+from app.uploader.relay import relay_fetch, relay_probe
 from app.uploader.userbot import UserbotPool
 
 log = logging.getLogger(__name__)
@@ -109,7 +109,7 @@ async def userbot_status(ctx: dict[str, Any]) -> str:
 
 
 class UploaderSettings:
-    functions = [upload_test_file, upload_files, relay_fetch, userbot_status]
+    functions = [upload_test_file, upload_files, relay_fetch, relay_probe, userbot_status]
     queue_name = UPLOADER_QUEUE
     on_startup = startup
     on_shutdown = shutdown
