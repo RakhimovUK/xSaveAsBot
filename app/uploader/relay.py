@@ -134,7 +134,13 @@ async def converse(
                 clicked.add(msg.id)
                 menus[msg.id] = _menu_key(msg)
                 if pick:
-                    log.info("relay %s: clicking button %s", username, pick)
+                    log.info(
+                        "relay %s: variant=%s clicking button %s %r",
+                        username,
+                        variant,
+                        pick,
+                        msg.buttons[pick[0]][pick[1]].text,
+                    )
                     try:
                         answer = await msg.click(*pick)
                     except Exception as exc:
@@ -239,16 +245,25 @@ async def _store_facts(redis: Redis, key: str, msg: Any) -> None:
         await set_meta(redis, key, {**await get_meta(redis, key), **facts})
 
 
-async def relay_probe(ctx: dict[str, Any], username: str, url: str) -> dict[str, Any]:
+async def relay_probe(
+    ctx: dict[str, Any], username: str, url: str, variant: str | None = None
+) -> dict[str, Any]:
     """Admin/debug: ask one helper for `url` and report what came back (nothing is stored)."""
     client: TelegramClient = ctx["userbots"].get()
     redis: Redis = ctx["redis"]
     try:
         await _ensure_started(client, redis, username)
-        messages = await converse(client, username, url, None, None, 75, "any", redis)
+        messages = await converse(client, username, url, variant, None, 90, "any", redis)
     except Exception as exc:
         return {"ok": False, "error": str(exc) or type(exc).__name__}
-    return {"ok": True, "media": len(messages), "kind": type(messages[0].media).__name__}
+    attrs = getattr(getattr(messages[0], "document", None), "attributes", None) or []
+    dims = [(a.w, a.h) for a in attrs if getattr(a, "w", None) and getattr(a, "h", None)]
+    return {
+        "ok": True,
+        "media": len(messages),
+        "dims": dims,
+        "caption": (messages[0].message or "")[:200],
+    }
 
 
 async def relay_fetch(
