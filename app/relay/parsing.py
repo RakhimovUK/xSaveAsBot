@@ -163,6 +163,26 @@ def choose_language(rows: list[list[Any]]) -> tuple[int, int] | None:
     return langs[0][0], langs[0][1]
 
 
+def is_url_language_menu(rows: list[list[Any]]) -> bool:
+    """A language menu made of URL (mini-app) buttons: the userbot cannot press those."""
+    urls = [
+        b
+        for row in rows
+        for b in row
+        if getattr(b, "url", None) and LANG_BUTTON_RE.search(getattr(b, "text", "") or "")
+    ]
+    return len(urls) >= 3
+
+
+def back_button(rows: list[list[Any]]) -> tuple[int, int] | None:
+    for i, row in enumerate(rows):
+        for j, b in enumerate(row):
+            text = (getattr(b, "text", "") or "").lower()
+            if not getattr(b, "url", None) and any(w in text for w in ("назад", "back", "orqaga")):
+                return i, j
+    return None
+
+
 def media_plausible(msg: Any, expected_duration: float | None) -> bool:
     """Reject ads / wrong videos: duration must be near the one we probed (when known)."""
     file = getattr(msg, "file", None)

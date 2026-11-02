@@ -169,3 +169,17 @@ def test_choose_language_menu():
     assert choose_language(menu) == (0, 2)
     assert choose_language(rows("🇩🇪 DE", "🇺🇸 EN", "🇷🇺 RU")) == (0, 1)
     assert choose_language(rows("⚡ 144p", "📹 720p", "🔉 MP3")) is None
+
+
+def test_url_language_menu_and_back_button():
+    from types import SimpleNamespace as NS
+
+    from app.relay.parsing import back_button, is_url_language_menu
+
+    url = "https://t.me/x/main?startapp=p"
+    rows = [
+        [NS(text=t, url=url) for t in ("🇵🇱 PL", "🇩🇪 DE", "🇺🇸 EN")],
+        [NS(text="← Назад", url=None)],
+    ]
+    assert is_url_language_menu(rows) and back_button(rows) == (1, 0)
+    assert not is_url_language_menu([[NS(text="⚡ 1080p", url=None)]])

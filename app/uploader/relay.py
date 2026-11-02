@@ -26,9 +26,11 @@ from app.extractors.youtube_meta import flag_from_text
 from app.relay import registry
 from app.relay.parsing import (
     JOIN_MARKERS,
+    back_button,
     choose_button,
     choose_language,
     classify_message,
+    is_url_language_menu,
     media_plausible,
     wanted_kind,
 )
@@ -39,7 +41,6 @@ log = logging.getLogger(__name__)
 POLL_S = 2.0
 ALBUM_QUIET_S = 5.0  # wait this long after the last media message for album siblings
 STALL_S = 60.0  # give up on a helper that shows no new activity for this long
-STALL_HD_S = 170.0  # 1080p+ may need the helper to download and merge first
 
 
 class RelayError(Exception):
@@ -92,14 +93,12 @@ async def converse(
     logged: set[int] = set()
     last_activity = time.monotonic()
     signature: tuple | None = None
-    hd = bool(
-        variant and variant.endswith("p") and variant[:-1].isdigit() and int(variant[:-1]) >= 1080
-    )
-    stall_s = STALL_HD_S if hd else STALL_S
+    stall_s = STALL_S
     stale: set[int] = set()  # messages from before a subscription, ignored afterwards
     subscribed = False
     menus: dict[int, tuple] = {}
-    seen_menus: set[int] = set()
+    downgraded = False
+    eff_variant = variant
     redis = ctx_redis
 
     while time.monotonic() < deadline:
@@ -113,6 +112,8 @@ async def converse(
             if msg.id in stale:
                 continue
             verdict = classify_message(msg, wants)
+            if downgraded and msg.id in clicked and is_url_language_menu(msg.buttons or []):
+                continue  # waiting for the helper to go back to the quality menu
             if msg.id not in logged:
                 logged.add(msg.id)
                 log.info(
@@ -124,26 +125,6 @@ async def converse(
                     [b.text for row in (msg.buttons or []) for b in row][:8],
                     (msg.message or "")[:80],
                 )
-            if msg.id in clicked and verdict == "buttons" and msg.id not in seen_menus:
-                seen_menus.add(msg.id)
-                log.info(
-                    "relay @%s: clicked msg=%s changed menu new=%s lang=%s buttons=%d",
-                    username,
-                    msg.id,
-                    _new_menu(msg, menus),
-                    choose_language(msg.buttons),
-                    len([b for r in msg.buttons for b in r]),
-                )
-                log.info(
-                    "relay debug buttons: %s",
-                    ascii(
-                        [
-                            (getattr(b, "text", None), getattr(b, "url", None), type(b).__name__)
-                            for r in msg.buttons
-                            for b in r
-                        ][:5]
-                    ),
-                )
             if verdict == "media":
                 if msg.id not in media and media_plausible(msg, expected_duration):
                     media[msg.id] = msg
@@ -151,10 +132,29 @@ async def converse(
             elif (
                 verdict == "buttons"
                 and not media
+                and msg.id in clicked
+                and not downgraded
+                and is_url_language_menu(msg.buttons or [])
+            ):
+                # e.g. 1080p+ opens a mini-app language picker: fall back to 720p
+                downgraded, eff_variant = True, "720p"
+                back = back_button(msg.buttons)
+                log.info("relay @%s: %s needs a mini app; going back to 720p", username, variant)
+                if back:
+                    try:
+                        await msg.click(*back)
+                    except Exception as exc:
+                        log.warning("relay %s: back click failed: %s", username, exc)
+                clicked.discard(msg.id)
+                menus.pop(msg.id, None)
+                last_activity = time.monotonic()
+            elif (
+                verdict == "buttons"
+                and not media
                 and (msg.id not in clicked or _new_menu(msg, menus))
             ):
                 if msg.id not in clicked:
-                    pick = choose_button(msg.buttons, variant)
+                    pick = choose_button(msg.buttons, eff_variant)
                 else:  # the helper edited its message into a follow-up menu (audio language)
                     pick = choose_language(msg.buttons)
                 clicked.add(msg.id)
@@ -284,7 +284,7 @@ async def relay_probe(
         recent = await client.get_messages(username, limit=4)
         dump = [
             f"{m.id}:{'out' if m.out else 'in'}:{type(m.media).__name__ if m.media else '-'}:"
-            f"{(m.message or '')[:90]!r}:{ascii([b.text for r in (m.buttons or []) for b in r][:6])}"
+            f"{(m.message or '')[:90]!r}:{[b.text for r in (m.buttons or []) for b in r][:6]}"
             for m in recent
         ]
         return {"ok": False, "error": str(exc) or type(exc).__name__, "recent": dump}
