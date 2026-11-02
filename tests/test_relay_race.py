@@ -183,3 +183,22 @@ def test_url_language_menu_and_back_button():
     ]
     assert is_url_language_menu(rows) and back_button(rows) == (1, 0)
     assert not is_url_language_menu([[NS(text="⚡ 1080p", url=None)]])
+
+
+async def test_order_setting_roundtrip():
+    from app.db.models import Base
+    from app.db.session import make_engine, make_sessionmaker
+    from app.relay import registry
+
+    engine = make_engine("sqlite+aiosqlite:///:memory:")
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    sm = make_sessionmaker(engine)
+    async with sm() as session:
+        assert await registry.get_order(session, "youtube", "480p") == []
+        await registry.set_order(session, "youtube", "480p", ["@VideoYukla", "vide"])
+        await registry.set_order(session, "youtube", "480p", ["vide", "videoyukla"])
+        await session.commit()
+        assert await registry.get_order(session, "youtube", "480p") == ["vide", "videoyukla"]
+        assert await registry.get_order(session, "youtube", None) == []
+    await engine.dispose()

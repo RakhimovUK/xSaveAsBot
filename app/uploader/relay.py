@@ -345,14 +345,18 @@ async def relay_fetch(
 
     async with sm() as session:
         helpers = await registry.pick_helpers(session, platform)
+        order = await registry.get_order(session, platform, variant)
     if not helpers:
         return {"ok": False, "error": "no helper bots available"}
+    if order:  # measured speed for this exact quality button, fastest first; the rest follow
+        rank = {name: i for i, name in enumerate(order)}
+        helpers.sort(key=lambda h: (h.username not in rank, rank.get(h.username, 0), h.priority))
 
     wants = wanted_kind(platform, variant)
     parallel = max(1, settings.relay_parallel)
     pending = list(helpers)
     batch_size = parallel
-    if variant and re.fullmatch(r"\d{3,4}p", variant):
+    if not order and variant and re.fullmatch(r"\d{3,4}p", variant):
         # an explicit quality: only some helper bots can honour it, ask them first
         quality = [h for h in helpers if h.username in settings.relay_quality_helpers]
         if quality:

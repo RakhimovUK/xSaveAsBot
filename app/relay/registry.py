@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
+import json
 from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models import HelperBot
+from app.db.models import HelperBot, Setting
 
 FAILS_BEFORE_COOLDOWN = 3
 COOLDOWN = timedelta(minutes=10)
@@ -42,6 +43,33 @@ async def pick_helpers(session: AsyncSession, platform: str) -> list[HelperBot]:
         if helper.enabled and supports(helper, platform) and (cooldown is None or cooldown <= now):
             result.append(helper)
     return result
+
+
+def _order_key(platform: str, variant: str | None) -> str:
+    return f"relay_order:{platform}:{variant or 'best'}"
+
+
+async def get_order(session: AsyncSession, platform: str, variant: str | None) -> list[str]:
+    """Usernames in the order measured by the benchmark for one platform + quality button."""
+    row = await session.get(Setting, _order_key(platform, variant))
+    if row is None:
+        return []
+    try:
+        return [str(u) for u in json.loads(row.value)]
+    except ValueError:
+        return []
+
+
+async def set_order(
+    session: AsyncSession, platform: str, variant: str | None, usernames: list[str]
+) -> None:
+    key = _order_key(platform, variant)
+    value = json.dumps([normalize_username(u) for u in usernames])
+    row = await session.get(Setting, key)
+    if row is None:
+        session.add(Setting(key=key, value=value))
+    else:
+        row.value = value
 
 
 async def get_helper(session: AsyncSession, username: str) -> HelperBot | None:
