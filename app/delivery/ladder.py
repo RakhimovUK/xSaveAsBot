@@ -235,7 +235,14 @@ class Processor:
                     last_error = exc
 
             size = info.total_size
-            if size and size > s.relay_threshold_mb * MB and self._relay_enabled(platform):
+            explicit_hd = platform == "youtube" and variant not in (None, "best")
+            # helpers cannot honour an explicit YouTube quality, so never trade it for size
+            if (
+                size
+                and size > s.relay_threshold_mb * MB
+                and not explicit_hd
+                and self._relay_enabled(platform)
+            ):
                 relay_tried = True
                 try:
                     await self._relay(job, det, variant, key, channel, info)
