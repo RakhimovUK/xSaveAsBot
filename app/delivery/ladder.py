@@ -421,18 +421,15 @@ class Processor:
             await self.sender.text(target, text, reply_markup=markup)
 
     async def _send_relay_picker(self, job: LinkJob, det: Detected) -> None:
-        """Direct probe is blocked: the helper bot decides the exact quality, so only the
-        kind (video / MP3) is offered."""
+        """Direct probe is blocked: fixed quality choices, honoured by helpers that can."""
         vid = (det.key or "").split(":", 1)[1]
         meta = await fetch_oembed(det.url)
-        markup = InlineKeyboardMarkup(
-            inline_keyboard=[
-                [
-                    InlineKeyboardButton(text="🎬 Video", callback_data=f"yv:{vid}:best"),
-                    InlineKeyboardButton(text="🎧 MP3", callback_data=f"yv:{vid}:mp3"),
-                ]
-            ]
-        )
+        rows = [
+            [InlineKeyboardButton(text=f"🎬 {q}", callback_data=f"yv:{vid}:{q}") for q in pair]
+            for pair in (("360p", "480p"), ("720p", "1080p"))
+        ]
+        rows.append([InlineKeyboardButton(text="🎧 MP3", callback_data=f"yv:{vid}:mp3")])
+        markup = InlineKeyboardMarkup(inline_keyboard=rows)
         title = html.escape((meta["title"] if meta else "YouTube")[:200])
         text = gettext(job.lang, "picker-title", title=title)
         target = job.reply_target

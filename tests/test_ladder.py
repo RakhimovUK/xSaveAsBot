@@ -171,12 +171,12 @@ async def test_youtube_blocked_uses_relay_with_best_variant(rig, monkeypatch):
     await rig.processor.run(rig.job("https://youtu.be/dQw4w9WgXcQ"))
     kw = rig.bot.edit_message_text.call_args.kwargs
     buttons = [b.callback_data for row in kw["reply_markup"].inline_keyboard for b in row]
-    assert buttons == ["yv:dQw4w9WgXcQ:best", "yv:dQw4w9WgXcQ:mp3"]
+    assert buttons == [f"yv:dQw4w9WgXcQ:{v}" for v in ("360p", "480p", "720p", "1080p", "mp3")]
     assert not rig.enqueued
-    await rig.processor.run(rig.job("https://youtu.be/dQw4w9WgXcQ", "best"))
+    await rig.processor.run(rig.job("https://youtu.be/dQw4w9WgXcQ", "720p"))
     name, args = rig.enqueued[0]
     assert name == "relay_fetch"
-    assert args[0] == "yt:dQw4w9WgXcQ:best" and args[2] == "youtube" and args[3] == "best"
+    assert args[0] == "yt:dQw4w9WgXcQ:720p" and args[2] == "youtube" and args[3] == "720p"
     row = (await downloads(rig))[-1]
     assert (row.method, row.status) == ("relay", "ok")
 

@@ -61,6 +61,10 @@ class Settings(BaseSettings):
     relay_threshold_mb: int = 50
     relay_timeout_s: int = 120
     relay_parallel: int = 2  # helpers raced at once; first valid media wins
+    # helpers whose bot lets the user pick a quality; asked first for 360p/720p/... requests
+    relay_quality_helpers: Annotated[list[str], NoDecode] = Field(
+        default_factory=lambda: ["saveyoutubebot"]
+    )
     egress_daily_budget_gb: float = 5.0
     user_rate_limit: int = 10
     worker_concurrency: int = 4
@@ -118,6 +122,11 @@ class Settings(BaseSettings):
     @classmethod
     def _parse_sessions(cls, v: object) -> list[str]:
         return _split_csv(v)
+
+    @field_validator("relay_quality_helpers", mode="before")
+    @classmethod
+    def _parse_quality_helpers(cls, v: object) -> list[str]:
+        return [h.lower().lstrip("@") for h in _split_csv(v)]
 
     @field_validator("platforms_enabled", mode="before")
     @classmethod

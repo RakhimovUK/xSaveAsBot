@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 import time
 from typing import Any
 
@@ -226,9 +227,17 @@ async def relay_fetch(
     wants = wanted_kind(platform, variant)
     parallel = max(1, settings.relay_parallel)
     pending = list(helpers)
+    batch_size = parallel
+    if variant and re.fullmatch(r"\d{3,4}p", variant):
+        # an explicit quality: only some helper bots can honour it, ask them first
+        quality = [h for h in helpers if h.username in settings.relay_quality_helpers]
+        if quality:
+            pending = quality + [h for h in helpers if h not in quality]
+            batch_size = len(quality)
     last_error = "unknown"
     while pending:
-        batch, pending = pending[:parallel], pending[parallel:]
+        batch, pending = pending[:batch_size], pending[batch_size:]
+        batch_size = parallel
         tasks = {
             asyncio.create_task(_attempt(ctx, client, h, url, variant, expected_duration, wants)): h
             for h in batch
