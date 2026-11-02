@@ -134,6 +134,16 @@ async def converse(
                     choose_language(msg.buttons),
                     len([b for r in msg.buttons for b in r]),
                 )
+                log.info(
+                    "relay debug buttons: %s",
+                    ascii(
+                        [
+                            (getattr(b, "text", None), getattr(b, "url", None), type(b).__name__)
+                            for r in msg.buttons
+                            for b in r
+                        ][:5]
+                    ),
+                )
             if verdict == "media":
                 if msg.id not in media and media_plausible(msg, expected_duration):
                     media[msg.id] = msg
