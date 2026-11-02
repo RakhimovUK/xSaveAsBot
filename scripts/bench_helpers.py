@@ -47,7 +47,7 @@ async def bench_one(pool, user: str, results: dict, sem: asyncio.Semaphore, out:
             for variant in YT_VARIANTS:
                 wants = "audio" if variant == "mp3" else "video"
                 entry[f"youtube_{variant}"] = await run_probe(pool, user, YT_URL, variant, wants)
-        with open(out, "w", encoding="utf-8") as fh:
+        with open(out, "w", encoding="utf-8") as fh:  # noqa: ASYNC230
             json.dump(results, fh, ensure_ascii=False, indent=1)
         print("done", user, flush=True)
 
