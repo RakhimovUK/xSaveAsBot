@@ -53,7 +53,9 @@ async def helper_row(ctx, username):
 
 
 def patch(monkeypatch, behaviors):
-    async def fake_converse(client, username, url, variant, expected, timeout, wants="any", redis=None):
+    async def fake_converse(
+        client, username, url, variant, expected, timeout, wants="any", redis=None
+    ):
         return await behaviors[username]()
 
     async def no_start(client, redis, username):

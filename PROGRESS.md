@@ -36,6 +36,16 @@ is cancelled (losing a race is not a failure). Registered on the server:
 Live-test fixes: thumbnail photos are never accepted as video results, audio/preview/trim
 buttons are skipped, <=720p preferred, 60 s stall timeout, `/start` handshake per helper.
 
+### Update 2026-11-02 (later)
+- YouTube picker when direct probe is blocked: 360p/480p/720p/1080p/MP3; explicit heights go to
+  `RELAY_QUALITY_HELPERS` (default `saveyoutubebot`) first. YouTube caption template: `📹 Title →`,
+  `👤 #Channel →`, `@bot: 📹720p 🇺🇸 EN · more formats →` (deep link `/start yt_<id>` opens the picker).
+- Standing rule from the owner: when a helper demands a channel subscription, the userbot joins and
+  confirms (`app/uploader/subscribe.py`, channels from URL buttons only, 10 min cooldown per helper).
+- `relay_probe` uploader job tests one helper without storing anything.
+- Helpers added: `@Threads_DownloadRobot` (threads, prio 5; not yet verified with a real post),
+  `@SaveZBot` (all, prio 15; verified with an Instagram reel). `@SaveYoutubeBot` now subscribed and works.
+
 ### Known facts / risks
 - **YouTube blocks the Oracle IP** ("confirm you're not a bot"; tested 5 clients + bgutil PO
   token). YouTube therefore goes through the **helper-bot relay**; the picker only appears when
