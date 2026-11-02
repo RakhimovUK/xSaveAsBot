@@ -20,6 +20,7 @@ from app.db.session import make_engine, make_sessionmaker
 from app.logging_setup import setup_logging
 from app.media.testfile import write_png
 from app.queue import UPLOADER_QUEUE, redis_settings
+from app.uploader.fastupload import MIN_BIG, fast_upload
 from app.uploader.relay import relay_fetch, relay_probe
 from app.uploader.userbot import UserbotPool
 
@@ -86,9 +87,12 @@ async def upload_files(
             path = Path(f["path"])
             if f.get("name") and f["name"] != path.name:
                 path = path.rename(path.with_name(f["name"]))
+            handle = (
+                await fast_upload(client, path) if path.stat().st_size >= MIN_BIG else str(path)
+            )
             await client.send_file(
                 channel_id,
-                str(path),
+                handle,
                 caption=key_tag(key, index, total),
                 attributes=_attributes(f),
                 supports_streaming=f["kind"] == "video",
