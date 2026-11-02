@@ -46,6 +46,15 @@ buttons are skipped, <=720p preferred, 60 s stall timeout, `/start` handshake pe
 - Helpers added: `@Threads_DownloadRobot` (threads, prio 5; not yet verified with a real post),
   `@SaveZBot` (all, prio 15; verified with an Instagram reel). `@SaveYoutubeBot` now subscribed and works.
 
+### WARP proxy for YouTube (2026-11-02)
+YouTube blocks the Oracle IP, so yt-dlp goes through Cloudflare WARP: `~/warp/` on the server holds
+`wgcf` (profile, secrets stay on the server) and `wireproxy`, run by systemd unit `wireproxy.service`
+as a SOCKS5 proxy on the docker gateway (`172.18.0.1:1080`, iptables rule allows docker subnets only).
+`.env`: `PROXY_URL_YOUTUBE=socks5://172.18.0.1:1080`, `RELAY_THRESHOLD_MB=300`, `EGRESS_DAILY_BUDGET_GB=100`
+(Oracle gives 10 TB/month egress). Probe through WARP returned formats up to 1080p. Helper relay stays
+as the fallback if the proxy or YouTube fails. SaveYoutubeBot's 1080p is a mini app (not automatable):
+the relay falls back to 720p for it.
+
 ### Known facts / risks
 - **YouTube blocks the Oracle IP** ("confirm you're not a bot"; tested 5 clients + bgutil PO
   token). YouTube therefore goes through the **helper-bot relay**; the picker only appears when
