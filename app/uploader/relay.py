@@ -274,7 +274,7 @@ async def relay_probe(
         recent = await client.get_messages(username, limit=4)
         dump = [
             f"{m.id}:{'out' if m.out else 'in'}:{type(m.media).__name__ if m.media else '-'}:"
-            f"{(m.message or '')[:90]!r}:{[b.text for r in (m.buttons or []) for b in r][:10]}"
+            f"{(m.message or '')[:90]!r}:{ascii([b.text for r in (m.buttons or []) for b in r][:6])}"
             for m in recent
         ]
         return {"ok": False, "error": str(exc) or type(exc).__name__, "recent": dump}
