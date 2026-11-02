@@ -9,7 +9,7 @@ from __future__ import annotations
 from redis.asyncio import Redis
 
 RACE_SAMPLES = 10
-RACE_VARIANTS = ("360p", "480p", "720p", "mp3")
+RACE_VARIANTS = ("360p", "480p", "720p", "1080p", "mp3")
 
 
 def _k(variant: str) -> str:

@@ -105,6 +105,13 @@ AVOID_FOR_VIDEO = (
 DEFAULT_MAX_HEIGHT = 720  # a sensible quality/size trade-off when no height is requested
 
 
+def _is_payment_button(text: str) -> bool:
+    """Buy/pay/balance buttons are never pressed. A quality button that merely carries a
+    price tag (e.g. "480p · 3 ⭐") is a normal choice: the helper shows its own balance prompt."""
+    lowered = text.lower()
+    return any(m in lowered for m in PAYMENT_MARKERS) and not HEIGHT_RE.search(lowered)
+
+
 def choose_button(rows: list[list[Any]], variant: str | None) -> tuple[int, int] | None:
     """Pick the inline button for the wanted variant. URL buttons are never clicked.
 
@@ -114,8 +121,7 @@ def choose_button(rows: list[list[Any]], variant: str | None) -> tuple[int, int]
         (i, j, (getattr(b, "text", "") or "").lower())
         for i, row in enumerate(rows)
         for j, b in enumerate(row)
-        if not getattr(b, "url", None)
-        and not any(m in (getattr(b, "text", "") or "").lower() for m in PAYMENT_MARKERS)
+        if not getattr(b, "url", None) and not _is_payment_button(getattr(b, "text", "") or "")
     ]
     if variant == "mp3":
         for pref in AUDIO_PREFS:

@@ -210,5 +210,7 @@ def test_choose_button_never_presses_paid_buttons():
     from app.relay.parsing import choose_button
 
     rows = [[NS(text="🎬 480p (21.8 MB) · 3 ⭐", url=None), NS(text="Pay ⭐️ 5", url=None)]]
-    assert choose_button(rows, "480p") is None
+    assert choose_button(rows, "480p") == (0, 0)  # a priced quality button is a normal choice
+    assert choose_button([[NS(text="5 ⭐ balans olish", url=None)]], "480p") is None
+    assert choose_button([[NS(text="Pay ⭐️ 5", url=None)]], "480p") is None
     assert choose_button([[NS(text="📹 480p", url=None)]], "480p") == (0, 0)

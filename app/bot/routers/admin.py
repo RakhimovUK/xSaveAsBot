@@ -137,7 +137,7 @@ async def cmd_race(
             + (f" (avg {s['relay_s'] / s['relay']:.0f}s)" if s["relay"] else "")
             + f" → {lane}"
         )
-    lines.append("1080p and up: server only")
+    lines.append("1440p and up: server only")
     await _reply(message, sender, db_group, "\n".join(lines))
 
 

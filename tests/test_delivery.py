@@ -333,7 +333,7 @@ async def test_race_routes_per_quality():
     from app.delivery import race
 
     redis = fakeredis.FakeAsyncRedis()
-    assert await race.route(redis, "1080p") == "self"  # helpers cannot honour it
+    assert await race.route(redis, "1440p") == "self"  # helpers cannot honour it
     assert await race.route(redis, "480p") == "race"
     for _ in range(7):
         await race.record(redis, "480p", "relay", 30)
