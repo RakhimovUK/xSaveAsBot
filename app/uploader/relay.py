@@ -260,7 +260,13 @@ async def relay_probe(
         await _ensure_started(client, redis, username)
         messages = await converse(client, username, url, variant, None, 90, "any", redis)
     except Exception as exc:
-        return {"ok": False, "error": str(exc) or type(exc).__name__}
+        recent = await client.get_messages(username, limit=4)
+        dump = [
+            f"{m.id}:{'out' if m.out else 'in'}:{type(m.media).__name__ if m.media else '-'}:"
+            f"{(m.message or '')[:90]!r}:{[b.text for r in (m.buttons or []) for b in r][:10]}"
+            for m in recent
+        ]
+        return {"ok": False, "error": str(exc) or type(exc).__name__, "recent": dump}
     attrs = getattr(getattr(messages[0], "document", None), "attributes", None) or []
     dims = [(a.w, a.h) for a in attrs if getattr(a, "w", None) and getattr(a, "h", None)]
     return {
