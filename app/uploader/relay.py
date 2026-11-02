@@ -272,30 +272,59 @@ async def _store_facts(redis: Redis, key: str, msg: Any) -> None:
 
 
 async def relay_probe(
-    ctx: dict[str, Any], username: str, url: str, variant: str | None = None
+    ctx: dict[str, Any],
+    username: str,
+    url: str,
+    variant: str | None = None,
+    wants: str = "any",
 ) -> dict[str, Any]:
-    """Admin/debug: ask one helper for `url` and report what came back (nothing is stored)."""
+    """Admin/benchmark: ask one helper for `url`; report timing and what came back.
+    Nothing is stored. `seconds` covers only the conversation (not the /start handshake)."""
     client: TelegramClient = ctx["userbots"].get()
     redis: Redis = ctx["redis"]
+    started = time.monotonic()
     try:
         await _ensure_started(client, redis, username)
-        messages = await converse(client, username, url, variant, None, 90, "any", redis)
+        started = time.monotonic()
+        messages = await converse(client, username, url, variant, None, 100, wants, redis)
     except Exception as exc:
-        recent = await client.get_messages(username, limit=4)
-        dump = [
-            f"{m.id}:{'out' if m.out else 'in'}:{type(m.media).__name__ if m.media else '-'}:"
-            f"{(m.message or '')[:90]!r}:{[b.text for r in (m.buttons or []) for b in r][:6]}"
-            for m in recent
-        ]
-        return {"ok": False, "error": str(exc) or type(exc).__name__, "recent": dump}
-    attrs = getattr(getattr(messages[0], "document", None), "attributes", None) or []
+        return {
+            "ok": False,
+            "seconds": round(time.monotonic() - started, 1),
+            "error": str(exc) or type(exc).__name__,
+        }
+    seconds = round(time.monotonic() - started, 1)
+    first = messages[0]
+    attrs = getattr(getattr(first, "document", None), "attributes", None) or []
     dims = [(a.w, a.h) for a in attrs if getattr(a, "w", None) and getattr(a, "h", None)]
+    file = getattr(first, "file", None)
     return {
         "ok": True,
+        "seconds": seconds,
         "media": len(messages),
+        "kind": type(first.media).__name__,
+        "mime": getattr(file, "mime_type", None),
+        "size": getattr(file, "size", None),
+        "duration": getattr(file, "duration", None),
         "dims": dims,
-        "caption": (messages[0].message or "")[:200],
     }
+
+
+async def send_report(ctx: dict[str, Any], username: str, text: str) -> dict[str, Any]:
+    """Send a (long) text report to a user from the userbot account, in 4000-char chunks."""
+    client: TelegramClient = ctx["userbots"].get()
+    chunks, current = [], ""
+    for line in text.split("\n"):
+        if len(current) + len(line) + 1 > 3900:
+            chunks.append(current)
+            current = ""
+        current += line + "\n"
+    if current.strip():
+        chunks.append(current)
+    for chunk in chunks:
+        await client.send_message(username, chunk, parse_mode=None)
+        await asyncio.sleep(1)
+    return {"ok": True, "messages": len(chunks)}
 
 
 async def relay_fetch(
