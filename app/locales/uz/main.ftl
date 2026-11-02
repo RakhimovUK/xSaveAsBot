@@ -49,7 +49,7 @@ picker-title =
     🎬 <b>{ $title }</b>
 
     Sifatni tanlang:
-    🚀 tayyor (darhol keladi) · ⚡ Pro obuna · ⏳ tayyorlanadi, biroz kutiladi
+    🚀 tayyor (darhol keladi) · ⚡ tayyorlanadi
 unsupported-link = 🤷 Bu havola qo'llab-quvvatlanmaydi.
 send-link-hint = 🔗 Havola yuboring (Instagram, YouTube, TikTok, Threads, Pinterest va boshqalar).
 err-unsupported = 🤷 Bu havola qo'llab-quvvatlanmaydi.
@@ -66,3 +66,6 @@ err-nostorage = ⚠️ Fayl tayyorlandi, lekin yetkazib bo'lmadi. Qayta urinib k
 err-generic = ❌ Xatolik yuz berdi. Keyinroq qayta urinib ko'ring.
 caption-more-formats = Boshqa formatlar →
 status-relay-quality = ⏳ { $quality } tayyorlanmoqda, 30–60 soniya ketishi mumkin…
+picker-prompt =
+    Sifatni tanlang ↓
+    🚀 tayyor (darhol) · ⚡ tayyorlanadi

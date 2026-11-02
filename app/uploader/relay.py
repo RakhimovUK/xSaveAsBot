@@ -298,35 +298,6 @@ async def relay_probe(
     }
 
 
-async def relay_bench(ctx: dict[str, Any], username: str, tests: list[list[str]]) -> dict[str, Any]:
-    """Speed test of one helper: /start it, then time each [platform, url]. Nothing is stored."""
-    client: TelegramClient = ctx["userbots"].get()
-    redis: Redis = ctx["redis"]
-    try:
-        await _ensure_started(client, redis, username)
-    except Exception as exc:
-        return {"username": username, "results": [], "error": f"start failed: {exc}"[:160]}
-    results = []
-    for platform, url in tests:
-        began = time.monotonic()
-        try:
-            await converse(client, username, url, None, None, 75, "any", redis)
-            # converse waits ALBUM_QUIET_S after the media for album siblings
-            seconds = max(0.5, time.monotonic() - began - ALBUM_QUIET_S)
-            results.append({"platform": platform, "ok": True, "seconds": round(seconds, 1)})
-        except Exception as exc:
-            results.append(
-                {
-                    "platform": platform,
-                    "ok": False,
-                    "seconds": round(time.monotonic() - began, 1),
-                    "error": (str(exc) or type(exc).__name__)[:120],
-                }
-            )
-        await asyncio.sleep(2)
-    return {"username": username, "results": results}
-
-
 async def relay_fetch(
     ctx: dict[str, Any],
     key: str,

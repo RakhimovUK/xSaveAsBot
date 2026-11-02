@@ -49,7 +49,7 @@ picker-title =
     🎬 <b>{ $title }</b>
 
     Choose quality:
-    🚀 ready (instant) · ⚡ Pro subscription · ⏳ will be prepared, takes a moment
+    🚀 ready (instant) · ⚡ will be prepared
 unsupported-link = 🤷 This link is not supported.
 send-link-hint = 🔗 Send a link (Instagram, YouTube, TikTok, Threads, Pinterest and more).
 err-unsupported = 🤷 This link is not supported.
@@ -66,3 +66,6 @@ err-nostorage = ⚠️ The file was prepared but couldn't be delivered. Please t
 err-generic = ❌ Something went wrong. Please try again later.
 caption-more-formats = more formats →
 status-relay-quality = ⏳ Preparing { $quality }, this can take 30–60 seconds…
+picker-prompt =
+    Choose a quality ↓
+    🚀 ready (instant) · ⚡ will be prepared

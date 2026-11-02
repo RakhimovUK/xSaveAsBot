@@ -61,8 +61,6 @@ class Settings(BaseSettings):
     relay_threshold_mb: int = 50
     relay_timeout_s: int = 120
     relay_parallel: int = 2  # helpers raced at once; first valid media wins
-    # qualities shown with the Pro marker (gating arrives with the Stars premium phase)
-    pro_qualities: Annotated[list[str], NoDecode] = Field(default_factory=list)
     # helpers whose bot lets the user pick a quality; asked first for 360p/720p/... requests
     relay_quality_helpers: Annotated[list[str], NoDecode] = Field(
         default_factory=lambda: ["saveyoutubebot"]
@@ -129,11 +127,6 @@ class Settings(BaseSettings):
     @classmethod
     def _parse_quality_helpers(cls, v: object) -> list[str]:
         return [h.lower().lstrip("@") for h in _split_csv(v)]
-
-    @field_validator("pro_qualities", mode="before")
-    @classmethod
-    def _parse_pro_qualities(cls, v: object) -> list[str]:
-        return [q.lower() for q in _split_csv(v)]
 
     @field_validator("platforms_enabled", mode="before")
     @classmethod

@@ -481,7 +481,7 @@ class Processor:
             )
         buttons = [
             InlineKeyboardButton(
-                text=f"{self._marker(vid, o.variant, ready)} "
+                text=f"{'🚀' if f'yt:{vid}:{o.variant}' in ready else '⚡'} "
                 f"{QUALITY_LABELS.get(o.variant, o.variant)}"
                 + (f" · {fmt_size(o.size)}" if o.size else ""),
                 callback_data=f"yv:{vid}:{o.variant}",
@@ -489,12 +489,24 @@ class Processor:
             for o in info.formats
         ]
         rows = [buttons[i : i + 3] for i in range(0, len(buttons), 3)]
-        mp3_mark = self._marker(vid, "mp3", await self._cached(vid, ["mp3"]))
+        mp3_mark = "🚀" if f"yt:{vid}:mp3" in await self._cached(vid, ["mp3"]) else "⚡"
         rows.append([InlineKeyboardButton(text=f"{mp3_mark} MP3", callback_data=f"yv:{vid}:mp3")])
         markup = InlineKeyboardMarkup(inline_keyboard=rows)
         title = html.escape((info.title or "YouTube")[:200])
         text = gettext(job.lang, "picker-title", title=title)
         target = job.reply_target
+        caption = await self._picker_caption(job, det, info, vid, ready)
+        try:  # thumbnail + sizes, like the helper bots; Telegram fetches the image itself
+            await self.sender.photo(
+                target,
+                f"https://i.ytimg.com/vi/{vid}/hqdefault.jpg",
+                caption=caption,
+                reply_markup=markup,
+            )
+            await self.sender.delete(target.chat_id, job.status_message_id)
+            return
+        except Exception:
+            log.info("picker photo failed; falling back to text", exc_info=True)
         if not await self.sender.edit_status(
             text,
             chat_id=target.chat_id,
@@ -503,11 +515,24 @@ class Processor:
         ):
             await self.sender.text(target, text, reply_markup=markup)
 
-    def _marker(self, vid: str, variant: str, ready: set[str]) -> str:
-        """🚀 cached (instant) · ⚡ Pro quality · ⏳ will be prepared."""
-        if variant in self.s.pro_qualities:
-            return "⚡"
-        return "🚀" if f"yt:{vid}:{variant}" in ready else "⏳"
+    async def _picker_caption(
+        self, job: LinkJob, det: Detected, info: MediaInfo, vid: str, ready: set[str]
+    ) -> str:
+        meta = await fetch_oembed(det.url) or {
+            "title": info.title or "YouTube",
+            "author": info.uploader or "",
+            "author_url": "",
+        }
+        sizes: list[str] = []
+        biggest = 0
+        for o in info.formats:  # sizes are estimates: keep them non-decreasing
+            biggest = max(biggest, o.size or 0)
+            mark = "🚀" if f"yt:{vid}:{o.variant}" in ready else "⚡"
+            label = QUALITY_LABELS.get(o.variant, o.variant).split(" ")[0]
+            sizes.append(f"{mark} {label + ':':<6} {fmt_size(biggest) if o.size else '?':>8}")
+        return f"{caption_html(det.url, meta)}\n\n<pre>{chr(10).join(sizes)}</pre>\n\n" + gettext(
+            job.lang, "picker-prompt"
+        )
 
     async def _cached(self, vid: str, variants: list[str]) -> set[str]:
         async with self.sm() as session:

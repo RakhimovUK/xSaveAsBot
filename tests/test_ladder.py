@@ -62,6 +62,7 @@ class Rig:
             "send_media_group",
             "delete_message",
             "edit_message_text",
+            "edit_message_caption",
             "send_audio",
             "send_document",
             "send_animation",
@@ -193,14 +194,15 @@ async def test_youtube_picker_when_probe_works(rig, monkeypatch):
     )
     monkeypatch.setattr(ladder_mod.service, "probe", AsyncMock(return_value=info))
     await rig.processor.run(rig.job("https://youtu.be/dQw4w9WgXcQ"))
-    kw = rig.bot.edit_message_text.call_args.kwargs
+    kw = rig.bot.send_photo.call_args.kwargs
     buttons = [b for row in kw["reply_markup"].inline_keyboard for b in row]
     assert [b.callback_data for b in buttons] == [
         "yv:dQw4w9WgXcQ:360p",
         "yv:dQw4w9WgXcQ:720p",
         "yv:dQw4w9WgXcQ:mp3",
     ]
-    assert "10 MB" in buttons[0].text and "Song &lt;3" in kw["text"]
+    assert kw["photo"].endswith("/dQw4w9WgXcQ/hqdefault.jpg")
+    assert "360p:" in kw["caption"] and "10 MB" in kw["caption"] and "Song &lt;3" in kw["caption"]
     assert rig.enqueued == []
 
 

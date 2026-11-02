@@ -156,6 +156,13 @@ class Sender:
             )
             return True
         except Exception:
+            pass
+        try:  # a photo message (the quality picker) has a caption, not a text
+            await self.bot.edit_message_caption(
+                caption=text, chat_id=chat_id, message_id=message_id, reply_markup=reply_markup
+            )
+            return True
+        except Exception:
             log.debug("edit_status failed chat=%s msg=%s", chat_id, message_id)
             return False
 
