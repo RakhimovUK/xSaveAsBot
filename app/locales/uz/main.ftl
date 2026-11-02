@@ -64,3 +64,4 @@ err-ratelimit = ⏳ Juda tez-tez so'rayapsiz, bir daqiqa kuting.
 err-nostorage = ⚠️ Fayl tayyorlandi, lekin yetkazib bo'lmadi. Qayta urinib ko'ring.
 err-generic = ❌ Xatolik yuz berdi. Keyinroq qayta urinib ko'ring.
 caption-more-formats = Boshqa formatlar →
+status-relay-quality = ⏳ { $quality } tayyorlanmoqda, 30–60 soniya ketishi mumkin…

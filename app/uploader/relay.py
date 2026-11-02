@@ -27,6 +27,7 @@ from app.relay import registry
 from app.relay.parsing import (
     JOIN_MARKERS,
     choose_button,
+    choose_language,
     classify_message,
     media_plausible,
     wanted_kind,
@@ -57,6 +58,15 @@ async def _release(redis: Redis, username: str) -> None:
     await redis.delete(f"xsaveasbot:relay:lock:{username}")
 
 
+def _menu_key(msg: Any) -> tuple:
+    return tuple((b.text or "") for row in (msg.buttons or []) for b in row)
+
+
+def _new_menu(msg: Any, menus: dict[int, tuple]) -> bool:
+    """True when a message we already clicked now shows a different language menu."""
+    return _menu_key(msg) != menus.get(msg.id) and choose_language(msg.buttons) is not None
+
+
 async def converse(
     client: TelegramClient,
     username: str,
@@ -83,6 +93,7 @@ async def converse(
     signature: tuple | None = None
     stale: set[int] = set()  # messages from before a subscription, ignored afterwards
     subscribed = False
+    menus: dict[int, tuple] = {}
     redis = ctx_redis
 
     while time.monotonic() < deadline:
@@ -111,9 +122,17 @@ async def converse(
                 if msg.id not in media and media_plausible(msg, expected_duration):
                     media[msg.id] = msg
                     last_media_at = time.monotonic()
-            elif verdict == "buttons" and msg.id not in clicked and not media:
-                pick = choose_button(msg.buttons, variant)
+            elif (
+                verdict == "buttons"
+                and not media
+                and (msg.id not in clicked or _new_menu(msg, menus))
+            ):
+                if msg.id not in clicked:
+                    pick = choose_button(msg.buttons, variant)
+                else:  # the helper edited its message into a follow-up menu (audio language)
+                    pick = choose_language(msg.buttons)
                 clicked.add(msg.id)
+                menus[msg.id] = _menu_key(msg)
                 if pick:
                     log.info("relay %s: clicking button %s", username, pick)
                     try:

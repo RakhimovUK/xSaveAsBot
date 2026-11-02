@@ -139,6 +139,30 @@ def choose_button(rows: list[list[Any]], variant: str | None) -> tuple[int, int]
     return (usable[0][0], usable[0][1]) if usable else None
 
 
+LANG_BUTTON_RE = re.compile(r"[\U0001F1E6-\U0001F1FF]{2}\s*[A-Z]{2,3}\b")
+CURRENT_MARKS = ("🚀", "✅", "☑", "✔", "●")
+
+
+def choose_language(rows: list[list[Any]]) -> tuple[int, int] | None:
+    """An audio-language menu ("choose the dubbing language"): press the currently marked
+    language (the default track), else English. None when the message is not such a menu."""
+    langs = [
+        (i, j, getattr(b, "text", "") or "")
+        for i, row in enumerate(rows)
+        for j, b in enumerate(row)
+        if not getattr(b, "url", None) and LANG_BUTTON_RE.search(getattr(b, "text", "") or "")
+    ]
+    if len(langs) < 3:
+        return None
+    for i, j, text in langs:
+        if any(mark in text for mark in CURRENT_MARKS):
+            return i, j
+    for i, j, text in langs:
+        if text.strip().endswith("EN"):
+            return i, j
+    return langs[0][0], langs[0][1]
+
+
 def media_plausible(msg: Any, expected_duration: float | None) -> bool:
     """Reject ads / wrong videos: duration must be near the one we probed (when known)."""
     file = getattr(msg, "file", None)

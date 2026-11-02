@@ -155,3 +155,17 @@ def test_parse_channel_link():
     assert parse_channel_link("https://t.me/joinchat/AbCd123") == ("invite", "AbCd123")
     assert parse_channel_link("https://t.me/saveyoutubebot") is None
     assert parse_channel_link("https://example.com/x") is None
+
+
+def test_choose_language_menu():
+    from types import SimpleNamespace as NS
+
+    from app.relay.parsing import choose_language
+
+    def rows(*texts):
+        return [[NS(text=t, url=None) for t in texts]]
+
+    menu = rows("🇵🇱 PL", "🇩🇪 DE", "🚀 🇺🇸 EN", "🇷🇺 RU", "← Назад")
+    assert choose_language(menu) == (0, 2)
+    assert choose_language(rows("🇩🇪 DE", "🇺🇸 EN", "🇷🇺 RU")) == (0, 1)
+    assert choose_language(rows("⚡ 144p", "📹 720p", "🔉 MP3")) is None

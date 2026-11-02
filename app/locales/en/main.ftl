@@ -64,3 +64,4 @@ err-ratelimit = ⏳ Too many requests, please wait a minute.
 err-nostorage = ⚠️ The file was prepared but couldn't be delivered. Please try again.
 err-generic = ❌ Something went wrong. Please try again later.
 caption-more-formats = more formats →
+status-relay-quality = ⏳ Preparing { $quality }, this can take 30–60 seconds…

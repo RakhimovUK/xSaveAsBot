@@ -54,6 +54,8 @@ from app.queue import UPLOADER_QUEUE
 
 log = logging.getLogger(__name__)
 
+YT_BLOCKED_FLAG = "xsaveasbot:yt:probe_blocked"
+
 MB = 1024 * 1024
 KNOWN_ERRORS = {
     "unsupported",
@@ -119,6 +121,9 @@ class Processor:
             variant = job.variant
             info: MediaInfo | None = None
             force_relay = False
+            if platform == "youtube" and variant is not None:
+                # the picker was shown because the direct probe is blocked: don't probe again
+                force_relay = bool(await self.redis.get(YT_BLOCKED_FLAG))
             if platform == "youtube" and variant is None:
                 try:
                     info = await service.probe(det.url, det.key or "", platform, self.s)
@@ -128,6 +133,7 @@ class Processor:
                     log.info(
                         "youtube probe blocked (%s); offering relay picker", type(exc).__name__
                     )
+                    await self.redis.set(YT_BLOCKED_FLAG, "1", ex=900)
                     await self._send_relay_picker(job, det)
                     return
                 else:
@@ -335,7 +341,11 @@ class Processor:
         channel: int,
         info: MediaInfo | None,
     ) -> None:
-        await self._status(job, "status-relay")
+        quality = "MP3" if variant == "mp3" else variant if variant and variant != "best" else None
+        if quality:
+            await self._status(job, "status-relay-quality", quality=quality)
+        else:
+            await self._status(job, "status-relay")
         result = await self._enqueue_wait(
             "relay_fetch",
             key,
@@ -443,9 +453,9 @@ class Processor:
 
     # --- helpers ---------------------------------------------------------------
 
-    async def _status(self, job: LinkJob, key: str) -> None:
+    async def _status(self, job: LinkJob, key: str, **args: str) -> None:
         await self.sender.edit_status(
-            gettext(job.lang, key),
+            gettext(job.lang, key, **args),
             chat_id=job.reply_target.chat_id,
             message_id=job.status_message_id,
         )
