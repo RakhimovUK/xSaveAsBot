@@ -10,6 +10,7 @@ from __future__ import annotations
 import asyncio
 import html
 import logging
+import re
 import shutil
 import time
 import uuid
@@ -25,7 +26,7 @@ from app.bot.media_utils import extract_file, key_tag
 from app.bot.sender import Sender
 from app.config import Settings
 from app.db.models import Download
-from app.delivery import cache
+from app.delivery import cache, race
 from app.delivery.cache import StoredPart
 from app.delivery.egress import (
     GB,
@@ -48,7 +49,7 @@ from app.extractors.errors import (
     is_relayable,
 )
 from app.extractors.url_utils import CORE_PLATFORMS, Detected, detect_resolved
-from app.extractors.youtube_meta import caption_html, fetch_oembed
+from app.extractors.youtube_meta import caption_html, fetch_oembed, flag_from_lang
 from app.i18n import gettext
 from app.queue import UPLOADER_QUEUE
 
@@ -198,6 +199,11 @@ class Processor:
             yt = await fetch_oembed(det.url)
             if yt:
                 extra["caption_html"] = caption_html(det.url, yt)
+            if variant and re.fullmatch(r"\d{3,4}p", variant):
+                extra["quality"] = variant
+            lang = ((info.raw or {}).get("language") if info else None) or None
+            if flag := flag_from_lang(lang):
+                extra["flag"] = flag
         await set_meta(self.redis, key, {"platform": platform, "source_url": det.url, **extra})
         relay_tried = False
         last_error: Exception | None = None
@@ -235,6 +241,17 @@ class Processor:
                     last_error = exc
 
             size = info.total_size
+            if platform == "youtube" and self._relay_enabled(platform):
+                lane = await race.route(self.redis, variant)
+                if lane == "race":
+                    return await self._race(job, det, variant, key, channel, info)
+                if lane == "relay":
+                    try:
+                        await self._relay(job, det, variant, key, channel, info)
+                        return "relay", 0
+                    except Exception as exc:
+                        log.warning("relay lane failed key=%s: %s", key, exc)
+                        last_error = exc
             explicit_hd = platform == "youtube" and variant not in (None, "best")
             # helpers cannot honour an explicit YouTube quality, so never trade it for size
             if (
@@ -403,6 +420,47 @@ class Processor:
             return total
         finally:
             shutil.rmtree(workdir, ignore_errors=True)
+
+    async def _race(
+        self,
+        job: LinkJob,
+        det: Detected,
+        variant: str | None,
+        key: str,
+        channel: int,
+        info: MediaInfo,
+    ) -> tuple[str, int]:
+        """Run the server download and the helper relay together; the first to deliver wins."""
+        started = time.monotonic()
+        tasks: dict[asyncio.Task, str] = {
+            asyncio.create_task(self._self(job, info, det, variant, key, channel)): "self",
+            asyncio.create_task(self._relay(job, det, variant, key, channel, info)): "relay",
+        }
+        winner: tuple[str, int] | None = None
+        last_error: Exception | None = None
+        try:
+            while tasks and winner is None:
+                done, _ = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+                for task in done:
+                    name = tasks.pop(task)
+                    try:
+                        result = task.result()
+                    except Exception as exc:
+                        last_error = exc
+                        log.warning("race: %s path failed key=%s: %s", name, key, exc)
+                        continue
+                    winner = (name, result if isinstance(result, int) else 0)
+                    break
+        finally:
+            for task in tasks:
+                task.cancel()
+            await asyncio.gather(*tasks, return_exceptions=True)
+        if winner is None:
+            raise last_error or TemporaryError("both race paths failed")
+        seconds = time.monotonic() - started
+        await race.record(self.redis, variant or "", winner[0], seconds)
+        log.info("race key=%s winner=%s %.1fs", key, winner[0], seconds)
+        return ("self" if winner[0] == "self" else "relay"), winner[1]
 
     async def _wait_done(self, key: str, seconds: float = 30) -> None:
         deadline = time.monotonic() + seconds

@@ -38,17 +38,25 @@ def _link(url: str, text: str) -> str:
 
 
 def caption_html(url: str, meta: dict[str, str]) -> str:
-    """`📹 Title →` and `👤 #Channel →`; the whole text is the link (HTML)."""
-    lines = [f"📹 {_link(url, meta['title'] + ' →')}"]
-    author = meta.get("author")
-    if author:
-        tag = "#" + "_".join(author.split()) + " →"
-        lines.append(
-            f"👤 {_link(meta['author_url'], tag)}"
-            if meta.get("author_url")
-            else f"👤 {html.escape(tag)}"
-        )
+    """`📹 Title →` and `👤 #Channel →`; only the arrow is the link (HTML)."""
+    lines = [f"📹 {html.escape(meta['title'])} {_link(url, '→')}"]
+    tag = re.sub(r"\W+", "_", meta.get("author") or "").strip("_")
+    if tag:
+        arrow = _link(meta["author_url"], "→") if meta.get("author_url") else "→"
+        lines.append(f"👤 #{html.escape(tag)} {arrow}")
     return "\n".join(lines)
+
+
+FLAGS = {
+    "en": "🇺🇸", "ru": "🇷🇺", "uz": "🇺🇿", "tr": "🇹🇷", "de": "🇩🇪", "es": "🇪🇸", "fr": "🇫🇷",
+    "it": "🇮🇹", "pt": "🇵🇹", "ar": "🇸🇦", "ko": "🇰🇷", "ja": "🇯🇵", "zh": "🇨🇳", "hi": "🇮🇳",
+    "uk": "🇺🇦", "pl": "🇵🇱", "nl": "🇳🇱", "kk": "🇰🇿", "id": "🇮🇩", "fa": "🇮🇷",
+}  # fmt: skip
+
+
+def flag_from_lang(lang: str | None) -> str | None:
+    code = (lang or "").lower()[:2]
+    return f"{FLAGS[code]} {code.upper()}" if code in FLAGS else None
 
 
 def footer_html(

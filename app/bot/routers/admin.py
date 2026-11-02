@@ -16,6 +16,7 @@ from app.bot.sender import Sender
 from app.bot.targets import target_for_message
 from app.config import Settings
 from app.db.models import Download, Group, MediaCache, User
+from app.delivery import race
 from app.delivery.egress import GB, url_send_stats, used_bytes
 from app.extractors.url_utils import ALL_PLATFORMS
 from app.queue import UPLOADER_QUEUE, WORKER_QUEUE
@@ -113,6 +114,31 @@ async def cmd_helper_toggle(
     else:
         done = await registry.set_enabled(session, username, command.command == "helper_on")
     await _reply(message, sender, db_group, "✅ done" if done else "❌ no such helper")
+
+
+@router.message(Command("race"))
+async def cmd_race(
+    message: Message, command: CommandObject, sender: Sender, arq: ArqRedis, db_group: Group | None
+) -> None:
+    """YouTube self-vs-relay race table; `/race reset [quality]` starts sampling over."""
+    args = (command.args or "").split()
+    if args and args[0] == "reset":
+        await race.reset(arq, args[1] if len(args) > 1 else None)
+        await _reply(message, sender, db_group, "✅ race statistics reset")
+        return
+    lines = [f"<b>Race</b> (first {race.RACE_SAMPLES} per quality, then the faster path)"]
+    for variant in race.RACE_VARIANTS:
+        s = await race.stats(arq, variant)
+        lane = await race.route(arq, variant)
+        lines.append(
+            f"{variant}: server {int(s['self'])} wins"
+            + (f" (avg {s['self_s'] / s['self']:.0f}s)" if s["self"] else "")
+            + f" · helper {int(s['relay'])} wins"
+            + (f" (avg {s['relay_s'] / s['relay']:.0f}s)" if s["relay"] else "")
+            + f" → {lane}"
+        )
+    lines.append("1080p and up: server only")
+    await _reply(message, sender, db_group, "\n".join(lines))
 
 
 @router.message(Command("ban", "unban"))

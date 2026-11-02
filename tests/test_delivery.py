@@ -304,16 +304,16 @@ def test_button_choice_skips_audio_and_preview_buttons():
     assert choose_button([[button("MP3 only")]], "720p") is None
 
 
-def test_youtube_caption_html_links_title_and_channel():
+def test_youtube_caption_html_links_only_the_arrows():
     from app.extractors.youtube_meta import caption_html
 
     out = caption_html(
         "https://www.youtube.com/watch?v=abc",
-        {"title": "A <b>", "author": "Some Chan", "author_url": "https://www.youtube.com/@c"},
+        {"title": "A <b>", "author": "Some-Chan 5", "author_url": "https://www.youtube.com/@c"},
     )
     assert out == (
-        '📹 <a href="https://www.youtube.com/watch?v=abc">A &lt;b&gt; →</a>\n'
-        '👤 <a href="https://www.youtube.com/@c">#Some_Chan →</a>'
+        '📹 A &lt;b&gt; <a href="https://www.youtube.com/watch?v=abc">→</a>\n'
+        '👤 #Some_Chan_5 <a href="https://www.youtube.com/@c">→</a>'
     )
 
 
@@ -325,3 +325,19 @@ def test_youtube_footer_has_quality_flag_and_deeplink():
         '@xBot: 📹720p 🇺🇸 EN · <a href="https://t.me/xBot?start=yt_abcdefghijk">more →</a>'
     )
     assert flag_from_text("@bot: 📹 720p 🇺🇸 EN · x") == "🇺🇸 EN"
+
+
+async def test_race_routes_per_quality():
+    import fakeredis
+
+    from app.delivery import race
+
+    redis = fakeredis.FakeAsyncRedis()
+    assert await race.route(redis, "1080p") == "self"  # helpers cannot honour it
+    assert await race.route(redis, "480p") == "race"
+    for _ in range(7):
+        await race.record(redis, "480p", "relay", 30)
+    for _ in range(3):
+        await race.record(redis, "480p", "self", 50)
+    assert await race.route(redis, "480p") == "relay"
+    assert await race.route(redis, "720p") == "race"  # qualities are independent
