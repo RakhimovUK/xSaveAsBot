@@ -39,6 +39,7 @@ log = logging.getLogger(__name__)
 POLL_S = 2.0
 ALBUM_QUIET_S = 5.0  # wait this long after the last media message for album siblings
 STALL_S = 60.0  # give up on a helper that shows no new activity for this long
+STALL_HD_S = 170.0  # 1080p+ may need the helper to download and merge first
 
 
 class RelayError(Exception):
@@ -91,6 +92,10 @@ async def converse(
     logged: set[int] = set()
     last_activity = time.monotonic()
     signature: tuple | None = None
+    hd = bool(
+        variant and variant.endswith("p") and variant[:-1].isdigit() and int(variant[:-1]) >= 1080
+    )
+    stall_s = STALL_HD_S if hd else STALL_S
     stale: set[int] = set()  # messages from before a subscription, ignored afterwards
     subscribed = False
     menus: dict[int, tuple] = {}
@@ -168,7 +173,7 @@ async def converse(
             return [media[i] for i in sorted(media)]
         if last_problem and not media:
             raise RelayError(last_problem)
-        if not media and time.monotonic() - last_activity > STALL_S:
+        if not media and time.monotonic() - last_activity > stall_s:
             raise RelayError("stalled: helper stopped responding")
     if media:
         return [media[i] for i in sorted(media)]
