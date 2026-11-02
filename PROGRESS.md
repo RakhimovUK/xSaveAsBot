@@ -55,6 +55,14 @@ as a SOCKS5 proxy on the docker gateway (`172.18.0.1:1080`, iptables rule allows
 as the fallback if the proxy or YouTube fails. SaveYoutubeBot's 1080p is a mini app (not automatable):
 the relay falls back to 720p for it.
 
+### Helper benchmark (2026-11-02)
+`scripts/bench_helpers.py` (run in the worker image; uses the uploader `relay_probe` job) timed 22 helper
+bots on an Instagram reel and a YouTube video, plus every YouTube quality button. Classes by net seconds:
+1 superfast <=5, 2 fast <=12, 3 norma <=25, 4 slow <=60, 5 slow/no answer/wrong quality. Results set
+`helper_bots.priority` and per-quality YouTube order in the `settings` table (`relay_order:youtube:<variant>`,
+used first by `relay_fetch`). `instadowbot`/`skachat_robot` are gated by subgram.org sponsor links (not joined,
+disabled). Only Instagram and YouTube were benchmarked; other platforms keep their previous helpers.
+
 ### Known facts / risks
 - **YouTube blocks the Oracle IP** ("confirm you're not a bot"; tested 5 clients + bgutil PO
   token). YouTube therefore goes through the **helper-bot relay**; the picker only appears when
