@@ -202,3 +202,13 @@ async def test_order_setting_roundtrip():
         assert await registry.get_order(session, "youtube", "480p") == ["vide", "videoyukla"]
         assert await registry.get_order(session, "youtube", None) == []
     await engine.dispose()
+
+
+def test_choose_button_never_presses_paid_buttons():
+    from types import SimpleNamespace as NS
+
+    from app.relay.parsing import choose_button
+
+    rows = [[NS(text="🎬 480p (21.8 MB) · 3 ⭐", url=None), NS(text="Pay ⭐️ 5", url=None)]]
+    assert choose_button(rows, "480p") is None
+    assert choose_button([[NS(text="📹 480p", url=None)]], "480p") == (0, 0)

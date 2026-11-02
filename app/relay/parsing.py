@@ -88,6 +88,8 @@ def classify_message(msg: Any, wants: str = "any") -> str:
 
 HEIGHT_RE = re.compile(r"(?<!\d)(\d{3,4})p\b")
 # Buttons that never lead to the video itself
+# Paid buttons (Telegram Stars etc.) must never be pressed, for any variant
+PAYMENT_MARKERS = ("⭐", "pay", "balans", "stars", "оплат", "купить", "buy", "to'lov", "premium")
 AVOID_FOR_VIDEO = (
     *AUDIO_PREFS,
     "превью",
@@ -113,6 +115,7 @@ def choose_button(rows: list[list[Any]], variant: str | None) -> tuple[int, int]
         for i, row in enumerate(rows)
         for j, b in enumerate(row)
         if not getattr(b, "url", None)
+        and not any(m in (getattr(b, "text", "") or "").lower() for m in PAYMENT_MARKERS)
     ]
     if variant == "mp3":
         for pref in AUDIO_PREFS:
