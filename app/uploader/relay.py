@@ -20,6 +20,8 @@ from telethon import TelegramClient
 
 from app.bot.media_utils import key_tag
 from app.config import Settings
+from app.delivery.finalize import get_meta, set_meta
+from app.extractors.youtube_meta import flag_from_text
 from app.relay import registry
 from app.relay.parsing import (
     JOIN_MARKERS,
@@ -183,6 +185,23 @@ async def _record_failure(ctx: dict[str, Any], helper: Any, error: str) -> None:
         await redis.delete(f"xsaveasbot:relay:streak:{helper.username}")
 
 
+async def _store_facts(redis: Redis, key: str, msg: Any) -> None:
+    """Remember the real quality (video height) and audio-language flag for the caption."""
+    facts: dict[str, Any] = {}
+    sides = [
+        min(a.w, a.h)
+        for a in getattr(getattr(msg, "document", None), "attributes", None) or []
+        if getattr(a, "h", None) and getattr(a, "w", None)
+    ]
+    if sides:
+        facts["quality"] = f"{sides[0]}p"
+    flag = flag_from_text(getattr(msg, "message", None))
+    if flag:
+        facts["flag"] = flag
+    if facts:
+        await set_meta(redis, key, {**await get_meta(redis, key), **facts})
+
+
 async def relay_fetch(
     ctx: dict[str, Any],
     key: str,
@@ -236,6 +255,7 @@ async def relay_fetch(
         if winner is None:
             continue
         helper, messages, latency = winner
+        await _store_facts(redis, key, messages[0])
         try:
             total = len(messages)
             for index, msg in enumerate(messages, 1):

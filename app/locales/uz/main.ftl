@@ -63,3 +63,4 @@ err-budget = 📉 Bugungi limit tugadi. Ertaga qayta urinib ko'ring.
 err-ratelimit = ⏳ Juda tez-tez so'rayapsiz, bir daqiqa kuting.
 err-nostorage = ⚠️ Fayl tayyorlandi, lekin yetkazib bo'lmadi. Qayta urinib ko'ring.
 err-generic = ❌ Xatolik yuz berdi. Keyinroq qayta urinib ko'ring.
+caption-more-formats = Boshqa formatlar →

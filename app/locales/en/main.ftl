@@ -63,3 +63,4 @@ err-budget = 📉 Daily limit reached. Please try again tomorrow.
 err-ratelimit = ⏳ Too many requests, please wait a minute.
 err-nostorage = ⚠️ The file was prepared but couldn't be delivered. Please try again.
 err-generic = ❌ Something went wrong. Please try again later.
+caption-more-formats = more formats →

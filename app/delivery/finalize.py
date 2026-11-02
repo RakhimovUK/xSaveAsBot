@@ -20,6 +20,8 @@ from app.delivery.cache import StoredPart
 from app.delivery.captions import build_caption
 from app.delivery.pending import PendingDelivery, pop_waiters
 from app.delivery.send import deliver_parts
+from app.extractors.youtube_meta import footer_html
+from app.i18n import gettext
 
 log = logging.getLogger(__name__)
 
@@ -94,7 +96,18 @@ async def finalize(
 ) -> None:
     meta = await get_meta(redis, key)
     if meta.get("caption_html"):
-        footer = f"@{bot_username}" if bot_username else ""
+        quality = meta.get("quality")
+        if key.endswith(":mp3"):
+            quality = "🎧MP3"
+        elif quality:
+            quality = f"📹{quality}"
+        footer = footer_html(
+            bot_username,
+            key,
+            quality,
+            meta.get("flag"),
+            gettext(settings.default_lang, "caption-more-formats"),
+        )
         caption = meta["caption_html"] + (f"\n\n{footer}" if footer else "")
     else:
         caption = build_caption(

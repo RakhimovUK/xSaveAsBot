@@ -312,6 +312,16 @@ def test_youtube_caption_html_links_title_and_channel():
         {"title": "A <b>", "author": "Some Chan", "author_url": "https://www.youtube.com/@c"},
     )
     assert out == (
-        '📹 <a href="https://www.youtube.com/watch?v=abc">A &lt;b&gt;</a>\n'
-        '👤 <a href="https://www.youtube.com/@c">#Some_Chan</a>'
+        '📹 <a href="https://www.youtube.com/watch?v=abc">A &lt;b&gt; →</a>\n'
+        '👤 <a href="https://www.youtube.com/@c">#Some_Chan →</a>'
     )
+
+
+def test_youtube_footer_has_quality_flag_and_deeplink():
+    from app.extractors.youtube_meta import flag_from_text, footer_html
+
+    out = footer_html("xBot", "yt:abcdefghijk:best", "📹720p", "🇺🇸 EN", "more →")
+    assert out == (
+        '@xBot: 📹720p 🇺🇸 EN · <a href="https://t.me/xBot?start=yt_abcdefghijk">more →</a>'
+    )
+    assert flag_from_text("@bot: 📹 720p 🇺🇸 EN · x") == "🇺🇸 EN"
