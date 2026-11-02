@@ -21,7 +21,19 @@ log = logging.getLogger(__name__)
 
 MAX_JOINS = 5
 COOLDOWN_S = 600
-CHECK_MARKERS = ("провер", "check", "tekshir", "подписал", "i subscribed", "готово", "done")
+CHECK_MARKERS = (
+    "провер",
+    "check",
+    "tekshir",
+    "подписал",
+    "i subscribed",
+    "готово",
+    "done",
+    "a'zo bo",
+    "azo bo",
+    "bo'ldim",
+    "joined",
+)
 LINK_RE = re.compile(r"(?:https?://)?(?:t|telegram)\.me/(?:joinchat/|\+)?([A-Za-z0-9_-]+)", re.I)
 
 
@@ -79,6 +91,9 @@ async def auto_subscribe(client: TelegramClient, redis: Redis, helper: str, msg:
                     joined += 1
                 else:
                     log.warning("subscribe: could not join %s for @%s: %s", ref, helper, exc)
+    if joined == 0:
+        urls = [getattr(b, "url", None) for row in msg.buttons or [] for b in row]
+        log.info("subscribe: nothing joinable for @%s, button urls=%s", helper, urls)
     pick = check_button(msg)
     if pick:
         try:
