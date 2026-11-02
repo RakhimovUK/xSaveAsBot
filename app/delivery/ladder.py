@@ -56,6 +56,7 @@ from app.queue import UPLOADER_QUEUE
 log = logging.getLogger(__name__)
 
 YT_BLOCKED_FLAG = "xsaveasbot:yt:probe_blocked"
+QUALITY_LABELS = {"1440p": "2K (1440p)", "2160p": "4K (2160p)"}
 
 MB = 1024 * 1024
 KNOWN_ERRORS = {
@@ -476,12 +477,13 @@ class Processor:
         vid = (det.key or "").split(":", 1)[1]
         buttons = [
             InlineKeyboardButton(
-                text=f"🎬 {o.variant}" + (f" · {fmt_size(o.size)}" if o.size else ""),
+                text=f"🎬 {QUALITY_LABELS.get(o.variant, o.variant)}"
+                + (f" · {fmt_size(o.size)}" if o.size else ""),
                 callback_data=f"yv:{vid}:{o.variant}",
             )
             for o in info.formats
         ]
-        rows = [buttons[i : i + 2] for i in range(0, len(buttons), 2)]
+        rows = [buttons[i : i + 3] for i in range(0, len(buttons), 3)]
         rows.append([InlineKeyboardButton(text="🎧 MP3", callback_data=f"yv:{vid}:mp3")])
         markup = InlineKeyboardMarkup(inline_keyboard=rows)
         title = html.escape((info.title or "YouTube")[:200])

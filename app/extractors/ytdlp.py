@@ -20,7 +20,7 @@ log = logging.getLogger(__name__)
 IMAGE_EXTS = {"jpg", "jpeg", "png", "webp", "heic"}
 AUDIO_EXTS = {"mp3", "m4a", "opus", "ogg", "aac", "flac", "wav"}
 SKIP_SUFFIXES = {".part", ".ytdl", ".json", ".tmp", ".temp"}
-PICKER_HEIGHTS = (360, 480, 720, 1080, 1440, 2160)
+PICKER_HEIGHTS = (144, 240, 360, 480, 720, 1080, 1440, 2160)
 
 
 def _cookie_file(settings: Settings, platform: str) -> str | None:
