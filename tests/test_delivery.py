@@ -302,3 +302,16 @@ def test_button_choice_skips_audio_and_preview_buttons():
     assert choose_button(hs, None) == (0, 1) and choose_button(hs, "1080p") == (0, 2)
     assert choose_button([[button("1080p"), button("1440p")]], None) == (0, 0)  # lowest available
     assert choose_button([[button("MP3 only")]], "720p") is None
+
+
+def test_youtube_caption_html_links_title_and_channel():
+    from app.extractors.youtube_meta import caption_html
+
+    out = caption_html(
+        "https://www.youtube.com/watch?v=abc",
+        {"title": "A <b>", "author": "Some Chan", "author_url": "https://www.youtube.com/@c"},
+    )
+    assert out == (
+        '📹 <a href="https://www.youtube.com/watch?v=abc">A &lt;b&gt;</a>\n'
+        '👤 <a href="https://www.youtube.com/@c">#Some_Chan</a>'
+    )

@@ -107,6 +107,7 @@ async def rig(monkeypatch, tmp_path):
     )
     r = Rig(make_sessionmaker(engine), fakeredis.FakeAsyncRedis(), settings)
     r.settings, r.sm = settings, make_sessionmaker(engine)
+    monkeypatch.setattr(ladder_mod, "fetch_oembed", AsyncMock(return_value=None))  # no network
     yield r
     await engine.dispose()
 
@@ -168,10 +169,15 @@ async def test_youtube_blocked_uses_relay_with_best_variant(rig, monkeypatch):
         ladder_mod.service, "probe", AsyncMock(side_effect=BotCheckError("Sign in to confirm"))
     )
     await rig.processor.run(rig.job("https://youtu.be/dQw4w9WgXcQ"))
+    kw = rig.bot.edit_message_text.call_args.kwargs
+    buttons = [b.callback_data for row in kw["reply_markup"].inline_keyboard for b in row]
+    assert buttons == ["yv:dQw4w9WgXcQ:best", "yv:dQw4w9WgXcQ:mp3"]
+    assert not rig.enqueued
+    await rig.processor.run(rig.job("https://youtu.be/dQw4w9WgXcQ", "best"))
     name, args = rig.enqueued[0]
     assert name == "relay_fetch"
     assert args[0] == "yt:dQw4w9WgXcQ:best" and args[2] == "youtube" and args[3] == "best"
-    [row] = await downloads(rig)
+    row = (await downloads(rig))[-1]
     assert (row.method, row.status) == ("relay", "ok")
 
 
@@ -210,7 +216,7 @@ async def test_private_post_is_reported_not_relayed(rig, monkeypatch):
 async def test_relay_failure_reports_unavailable_to_every_waiter(rig, monkeypatch):
     monkeypatch.setattr(ladder_mod.service, "probe", AsyncMock(side_effect=BotCheckError("bot")))
     rig.uploader_result = {"ok": False, "error": "no helper bots available"}
-    await rig.processor.run(rig.job("https://youtu.be/dQw4w9WgXcQ"))
+    await rig.processor.run(rig.job("https://youtu.be/dQw4w9WgXcQ", "best"))
     assert "temporarily unavailable" in rig.texts()[-1]
 
 
@@ -232,7 +238,7 @@ async def test_storage_post_never_arriving_gives_error(rig, monkeypatch):
     monkeypatch.setattr(ladder_mod.service, "probe", AsyncMock(side_effect=BotCheckError("bot")))
     rig.mark_done_on_enqueue = False
     monkeypatch.setattr(Processor, "_wait_done", _fast_wait_done)
-    await rig.processor.run(rig.job("https://youtu.be/dQw4w9WgXcQ"))
+    await rig.processor.run(rig.job("https://youtu.be/dQw4w9WgXcQ", "best"))
     assert "couldn't be delivered" in rig.texts()[-1]
 
 

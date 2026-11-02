@@ -93,9 +93,13 @@ async def finalize(
     parts: list[StoredPart],
 ) -> None:
     meta = await get_meta(redis, key)
-    caption = build_caption(
-        meta.get("caption") or meta.get("title"), meta.get("source_url"), bot_username
-    )
+    if meta.get("caption_html"):
+        footer = f"@{bot_username}" if bot_username else ""
+        caption = meta["caption_html"] + (f"\n\n{footer}" if footer else "")
+    else:
+        caption = build_caption(
+            meta.get("caption") or meta.get("title"), meta.get("source_url"), bot_username
+        )
     platform = meta.get("platform") or key.split(":", 1)[0]
     await cache.save_entry(session, key, platform, parts, caption)
     await session.commit()

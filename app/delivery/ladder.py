@@ -48,6 +48,7 @@ from app.extractors.errors import (
     is_relayable,
 )
 from app.extractors.url_utils import CORE_PLATFORMS, Detected, detect_resolved
+from app.extractors.youtube_meta import caption_html, fetch_oembed
 from app.i18n import gettext
 from app.queue import UPLOADER_QUEUE
 
@@ -124,8 +125,11 @@ class Processor:
                 except ExtractError as exc:
                     if not (self._relay_enabled(platform) and is_relayable(exc)):
                         raise
-                    log.info("youtube probe blocked (%s); using relay", type(exc).__name__)
-                    variant, force_relay = "best", True
+                    log.info(
+                        "youtube probe blocked (%s); offering relay picker", type(exc).__name__
+                    )
+                    await self._send_relay_picker(job, det)
+                    return
                 else:
                     self._check_duration(info)
                     if info.formats:
@@ -183,7 +187,12 @@ class Processor:
         s = self.s
         platform = det.platform
         channel = s.storage_channel_for(platform)
-        await set_meta(self.redis, key, {"platform": platform, "source_url": det.url})
+        extra: dict[str, Any] = {}
+        if platform == "youtube":
+            yt = await fetch_oembed(det.url)
+            if yt:
+                extra["caption_html"] = caption_html(det.url, yt)
+        await set_meta(self.redis, key, {"platform": platform, "source_url": det.url, **extra})
         relay_tried = False
         last_error: Exception | None = None
 
@@ -208,6 +217,7 @@ class Processor:
                     "title": info.title,
                     "performer": info.uploader,
                     "duration": info.duration,
+                    **extra,
                 },
             )
             if await self._can_url_send(platform, info, variant):
@@ -400,6 +410,30 @@ class Processor:
         rows.append([InlineKeyboardButton(text="🎧 MP3", callback_data=f"yv:{vid}:mp3")])
         markup = InlineKeyboardMarkup(inline_keyboard=rows)
         title = html.escape((info.title or "YouTube")[:200])
+        text = gettext(job.lang, "picker-title", title=title)
+        target = job.reply_target
+        if not await self.sender.edit_status(
+            text,
+            chat_id=target.chat_id,
+            message_id=job.status_message_id,
+            reply_markup=markup,
+        ):
+            await self.sender.text(target, text, reply_markup=markup)
+
+    async def _send_relay_picker(self, job: LinkJob, det: Detected) -> None:
+        """Direct probe is blocked: the helper bot decides the exact quality, so only the
+        kind (video / MP3) is offered."""
+        vid = (det.key or "").split(":", 1)[1]
+        meta = await fetch_oembed(det.url)
+        markup = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    InlineKeyboardButton(text="🎬 Video", callback_data=f"yv:{vid}:best"),
+                    InlineKeyboardButton(text="🎧 MP3", callback_data=f"yv:{vid}:mp3"),
+                ]
+            ]
+        )
+        title = html.escape((meta["title"] if meta else "YouTube")[:200])
         text = gettext(job.lang, "picker-title", title=title)
         target = job.reply_target
         if not await self.sender.edit_status(
