@@ -46,7 +46,7 @@ async def fast_upload(client: TelegramClient, path: Path, workers: int = WORKERS
             sem.release()
 
     try:
-        with open(path, "rb") as fh:
+        with open(path, "rb") as fh:  # noqa: ASYNC230 - sequential 512 KB reads
             for index in range(parts):
                 data = fh.read(PART_SIZE)
                 await sem.acquire()
