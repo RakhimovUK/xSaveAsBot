@@ -99,6 +99,7 @@ async def converse(
     stale: set[int] = set()  # messages from before a subscription, ignored afterwards
     subscribed = False
     menus: dict[int, tuple] = {}
+    seen_menus: set[int] = set()
     redis = ctx_redis
 
     while time.monotonic() < deadline:
@@ -122,6 +123,16 @@ async def converse(
                     type(msg.media).__name__ if msg.media else None,
                     [b.text for row in (msg.buttons or []) for b in row][:8],
                     (msg.message or "")[:80],
+                )
+            if msg.id in clicked and verdict == "buttons" and msg.id not in seen_menus:
+                seen_menus.add(msg.id)
+                log.info(
+                    "relay @%s: clicked msg=%s changed menu new=%s lang=%s buttons=%d",
+                    username,
+                    msg.id,
+                    _new_menu(msg, menus),
+                    choose_language(msg.buttons),
+                    len([b for r in msg.buttons for b in r]),
                 )
             if verdict == "media":
                 if msg.id not in media and media_plausible(msg, expected_duration):
