@@ -475,16 +475,22 @@ class Processor:
 
     async def _send_picker(self, job: LinkJob, det: Detected, info: MediaInfo) -> None:
         vid = (det.key or "").split(":", 1)[1]
+        async with self.sm() as session:
+            ready = await cache.cached_keys(
+                session, [f"yt:{vid}:{o.variant}" for o in info.formats]
+            )
         buttons = [
             InlineKeyboardButton(
-                text=f"🎬 {QUALITY_LABELS.get(o.variant, o.variant)}"
+                text=f"{'🚀' if f'yt:{vid}:{o.variant}' in ready else '⚡'} "
+                f"{QUALITY_LABELS.get(o.variant, o.variant)}"
                 + (f" · {fmt_size(o.size)}" if o.size else ""),
                 callback_data=f"yv:{vid}:{o.variant}",
             )
             for o in info.formats
         ]
         rows = [buttons[i : i + 3] for i in range(0, len(buttons), 3)]
-        rows.append([InlineKeyboardButton(text="🎧 MP3", callback_data=f"yv:{vid}:mp3")])
+        mp3_mark = "🚀" if f"yt:{vid}:mp3" in await self._cached(vid, ["mp3"]) else "⚡"
+        rows.append([InlineKeyboardButton(text=f"{mp3_mark} MP3", callback_data=f"yv:{vid}:mp3")])
         markup = InlineKeyboardMarkup(inline_keyboard=rows)
         title = html.escape((info.title or "YouTube")[:200])
         text = gettext(job.lang, "picker-title", title=title)
@@ -496,6 +502,10 @@ class Processor:
             reply_markup=markup,
         ):
             await self.sender.text(target, text, reply_markup=markup)
+
+    async def _cached(self, vid: str, variants: list[str]) -> set[str]:
+        async with self.sm() as session:
+            return await cache.cached_keys(session, [f"yt:{vid}:{v}" for v in variants])
 
     async def _send_relay_picker(self, job: LinkJob, det: Detected) -> None:
         """Direct probe is blocked: fixed quality choices, honoured by helpers that can."""

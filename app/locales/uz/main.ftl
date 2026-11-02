@@ -49,6 +49,7 @@ picker-title =
     🎬 <b>{ $title }</b>
 
     Sifatni tanlang:
+    🚀 tayyor (darhol keladi) · ⚡ tayyorlanadi
 unsupported-link = 🤷 Bu havola qo'llab-quvvatlanmaydi.
 send-link-hint = 🔗 Havola yuboring (Instagram, YouTube, TikTok, Threads, Pinterest va boshqalar).
 err-unsupported = 🤷 Bu havola qo'llab-quvvatlanmaydi.

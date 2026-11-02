@@ -30,6 +30,12 @@ class CachedMedia:
     parts: list[StoredPart]
 
 
+async def cached_keys(session: AsyncSession, keys: list[str]) -> set[str]:
+    """Which of `keys` are already cached (no hit counting): those are delivered instantly."""
+    rows = await session.scalars(select(MediaCache.key).where(MediaCache.key.in_(keys)))
+    return set(rows)
+
+
 async def get_entry(session: AsyncSession, key: str) -> CachedMedia | None:
     row = await session.scalar(select(MediaCache).where(MediaCache.key == key))
     if row is None or not row.bot_file_ids:

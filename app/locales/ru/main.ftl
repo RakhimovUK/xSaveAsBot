@@ -49,6 +49,7 @@ picker-title =
     🎬 <b>{ $title }</b>
 
     Выберите качество:
+    🚀 готово (мгновенно) · ⚡ будет готовиться
 unsupported-link = 🤷 Эта ссылка не поддерживается.
 send-link-hint = 🔗 Отправьте ссылку (Instagram, YouTube, TikTok, Threads, Pinterest и другие).
 err-unsupported = 🤷 Эта ссылка не поддерживается.
